@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UI;
 using System;
 
 public class PieceManager : MonoBehaviour {
@@ -23,6 +24,15 @@ public class PieceManager : MonoBehaviour {
 	 * Black Queen - 11
 	 * Black King - 12
 	 */
+	public enum PlayerTypes
+	{
+		Human = 0,
+		Random = 1,
+		Greed = 2
+	}
+	public GameObject[] Engines;
+	public PlayerTypes _blackPlayerType;
+	public PlayerTypes _whitePlayerType;
 	public int[,] chessboardarray = new int [,] { /*A File*/ {4,1,0,0,0,0,7,10}, /*B File*/ {2,1,0,0,0,0,7,8}, /*C File*/ {3,1,0,0,0,0,7,9}, /*D File*/ {5,1,0,0,0,0,7,11}, /*E File*/ {6,1,0,0,0,0,7,12}, /*F File*/ {3,1,0,0,0,0,7,9}, /*G File*/ {2,1,0,0,0,0,7,8}, /*H File*/ {4,1,0,0,0,0,7,10}};
 	public int[,] originalChessBoardArray = new int [,] { /*A File*/ {4,1,0,0,0,0,7,10}, /*B File*/ {2,1,0,0,0,0,7,8}, /*C File*/ {3,1,0,0,0,0,7,9}, /*D File*/ {5,1,0,0,0,0,7,11}, /*E File*/ {6,1,0,0,0,0,7,12}, /*F File*/ {3,1,0,0,0,0,7,9}, /*G File*/ {2,1,0,0,0,0,7,8}, /*H File*/ {4,1,0,0,0,0,7,10}};
 	public int[,] checkChessBoardArray = new int[,] { /*A File*/ {0,1,1,0,0,2,2,0}, /*B File*/ {1,1,1,0,0,2,2,2}, /*C File*/ {1,1,1,0,0,2,2,2}, /*D File*/ {1,1,1,0,0,2,2,2}, /*E File*/ {1,1,1,0,0,2,2,2}, /*F File*/ {1,1,1,0,0,2,2,2}, /*G File*/ {1,1,1,0,0,2,2,2}, /*H File*/ {0,1,1,0,0,2,2,0}};
@@ -84,6 +94,7 @@ public class PieceManager : MonoBehaviour {
 	public bool generatelegalmovesamount;
 	public bool printalllegalmoves;
 	public bool printgeneratedmovedecision;
+	public bool checkupcall = false;
 	// Use this for initialization
 	void Start () {
 		int count = 0;
@@ -98,19 +109,61 @@ public class PieceManager : MonoBehaviour {
 	// Update is called once per frame
 	void Update () {
 
-		if (Input.GetMouseButtonDown (0)) {
-			OnMouseDown();
-		} else if (Input.GetMouseButton (0)) {
-			OnMouseDrag ();
-		} else if (Input.GetMouseButtonUp (0)) {
-			OnMouseUp();
+		if (legalMoves.Count == 0) {
+			GenerateMatrix();
+			if (blackkingincheck == true) {
+				print ("1-0: Checkmate. White is Victorius");
+				Debug.Break();
+			}
+			else if (whitekingincheck == true) {
+				print ("0-1: Checkmate. Black is Victorius");
+				Debug.Break();
+			}
+			else
+			{
+				print ("1/2-1/2: Stalemate");
+				Debug.Break();
+			}
 		}
-		//moves the pieces
-		if (isDragging == true) {
-			Vector3 pz = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-			pz.z = -3;
-			seletedobjected.transform.position = pz;
+		if((whitesTurn == true && _whitePlayerType == PlayerTypes.Human) || (whitesTurn == false && _blackPlayerType == PlayerTypes.Human))
+		{
+			if (Input.GetMouseButtonDown (0)) {
+				OnMouseDown();
+			} else if (Input.GetMouseButton (0)) {
+				OnMouseDrag ();
+			} else if (Input.GetMouseButtonUp (0)) {
+				OnMouseUp();
+			}
+			//moves the pieces
+			if (isDragging == true) {
+				if((whitesTurn == true && _whitePlayerType == PlayerTypes.Human) || (whitesTurn == false && _blackPlayerType == PlayerTypes.Human))
+				{
+					Vector3 pz = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+					pz.z = -3;
+					seletedobjected.transform.position = pz;
+				}
+			}
 		}
+		else if((whitesTurn == true && _whitePlayerType == PlayerTypes.Random) || (whitesTurn == false && _blackPlayerType == PlayerTypes.Random))
+		{
+			if(checkupcall == false)
+			{
+				isLegal(chessboardarray);
+				checkupcall = true;
+				GenerateMatrix();
+				int[,] feedcb = Engines[0].GetComponent<RandomENGINE>().Calc(chessboardarray);
+				Interpreter(chessboardarray, feedcb);
+				chessboardarray = feedcb;
+				whitesTurn = !whitesTurn;
+				//GenerateMatrix();
+				//isLegal(feedcb);
+			}
+			else
+			{
+				print("check in prevented");
+			}
+		}
+		
 		if (printingarray == true) {
 			printArray (chessboardarray);
 			printingarray = false;
@@ -127,6 +180,10 @@ public class PieceManager : MonoBehaviour {
 			isLegal (chessboardarray);
 			print ("Amount of Legal moves is: " + legalMoves.Count);
 			generatelegalmovesamount = false;
+		}
+		if (generateLegalMoves == true)
+		{
+			GenerateMatrix();
 		}
 		if(printalllegalmoves == true)
 		{
@@ -286,6 +343,10 @@ public class PieceManager : MonoBehaviour {
 			x = x/2;
 			x=x+4;
 			x1= (int)x;
+			if(x1 == -1)
+			{
+				print(piece.name + piece.transform.position.x);
+			}
 
 			//odd rounding for y
 			if (Mathf.Round (Mathf.Abs(y)) % 2 != 0) {
@@ -310,18 +371,19 @@ public class PieceManager : MonoBehaviour {
 			if(piece.activeInHierarchy == true && k!=wanttocapture[2])
 			{
 				//gametocodearray[x1,y1] = k;
-				if(x1 == wanttocapture[0] && y1 == wanttocapture[1])
+				if(x1 == wanttocapture[0] && y1 == wanttocapture[1] && x1 != -1 && y1 != -1)
 				{
+					print("im not supposed to be here, [0] is " + wanttocapture[0] + ", x1 is: "+ x1+ "[1] is "+ wanttocapture[1]+ ", y1 is "+ y1);
 					if((wanttocapture[3] !=1 || y1 !=7) && (y1!=0 || wanttocapture[3] !=7))
 					{
 						generatedarray[x1,y1] = wanttocapture[3];
 					}
 					else{
-						if(wanttocapture[3] == 1)
+						if(wanttocapture[3] == 1)// && piece.GetComponent<SpriteRenderer>().sprite == wpawnname)
 						{
 							promotetooo = wpromotepref;
 						}
-						else if(wanttocapture[3] == 7)
+						else if(wanttocapture[3] == 7)// && piece.GetComponent<SpriteRenderer>().sprite == bpawnname)
 						{
 							promotetooo = bpromotepref;
 						}
@@ -1354,7 +1416,14 @@ public class PieceManager : MonoBehaviour {
 			chesspieces[gametocodearray[storedenpassant[0],storedenpassant[1]-1]-32].SetActive(false);
 		}
 		isLegal(chessboardarray);
-		isLeegal = false;
+		if((whitesTurn == true && _whitePlayerType != PlayerTypes.Random)|| (whitesTurn == false && _blackPlayerType != PlayerTypes.Random))
+		{
+			isLeegal = false;
+		}
+		else
+		{
+			isLeegal = true;
+		}
 		foreach (int[,] move in legalMoves)
 		{
 			string combinedmove = "";
@@ -1383,7 +1452,7 @@ public class PieceManager : MonoBehaviour {
 //		}
 
 
-		if(seletedobjected != null && (isLeegal == false || (whitekingincheck== true && whitesTurn == true)))
+		if((seletedobjected != null && (isLeegal == false || (whitekingincheck== true && whitesTurn == true))) && ((whitesTurn == true && _whitePlayerType == PlayerTypes.Human) || (whitesTurn == false && _blackPlayerType == PlayerTypes.Human)))
 		{
 			seletedobjected.transform.position = originalLoc;
 			if(printlegality){
@@ -1440,7 +1509,7 @@ public class PieceManager : MonoBehaviour {
 				{
 					chesspieces[wanttocapture[2]].SetActive(false);
 					chesspieces[wanttocapture[2]].transform.Translate(40,40,40);
-				//	print(wanttocapture[2]);
+					print(wanttocapture[2]);
 				}
 				wanttocapture = new int[] {-1,-1,-1,-1,-1};
 				chessboardarray = generatedarray;
@@ -1466,50 +1535,53 @@ public class PieceManager : MonoBehaviour {
 					}
 					kad++;
 				}
-				if (promotetooo!=0)
+				if(seletedobjected.gameObject.GetComponent<SpriteRenderer>().sprite == wpawnname || seletedobjected.gameObject.GetComponent<SpriteRenderer>().sprite == bpawnname)
 				{
-				//	print ("promote to is: "+ ", generated array is: ");
-				//	printArray(generatedarray);
-				}
-				if(promotetooo == 2)
-				{
-					seletedobjected.GetComponent<SpriteRenderer>().sprite = wknightname;
-					promotetooo = 0;
-				}
-				else if(promotetooo == 3)
-				{
-					seletedobjected.GetComponent<SpriteRenderer>().sprite = wbishopname;
-					promotetooo = 0;
-				}
-				else if(promotetooo == 4)
-				{
-					seletedobjected.GetComponent<SpriteRenderer>().sprite = wrookname;
-					promotetooo = 0;
-				}
-				else if(promotetooo == 5)
-				{
-					seletedobjected.GetComponent<SpriteRenderer>().sprite = wqueenname;
-					promotetooo = 0;
-				}
-				else if(promotetooo == 8)
-				{
-					seletedobjected.GetComponent<SpriteRenderer>().sprite = bknightname;
-					promotetooo = 0;
-				}
-				else if(promotetooo == 9)
-				{
-					seletedobjected.GetComponent<SpriteRenderer>().sprite = bbishopname;
-					promotetooo = 0;
-				}
-				else if(promotetooo == 10)
-				{
-					seletedobjected.GetComponent<SpriteRenderer>().sprite = brookname;
-					promotetooo = 0;
-				}
-				else if(promotetooo == 11)
-				{
-					seletedobjected.GetComponent<SpriteRenderer>().sprite = bqueenname;
-					promotetooo = 0;
+					if (promotetooo!=0)
+					{
+					//	print ("promote to is: "+ ", generated array is: ");
+					//	printArray(generatedarray);
+					}
+					if(promotetooo == 2)
+					{
+						seletedobjected.GetComponent<SpriteRenderer>().sprite = wknightname;
+						promotetooo = 0;
+					}
+					else if(promotetooo == 3)
+					{
+						seletedobjected.GetComponent<SpriteRenderer>().sprite = wbishopname;
+						promotetooo = 0;
+					}
+					else if(promotetooo == 4)
+					{
+						seletedobjected.GetComponent<SpriteRenderer>().sprite = wrookname;
+						promotetooo = 0;
+					}
+					else if(promotetooo == 5)
+					{
+						seletedobjected.GetComponent<SpriteRenderer>().sprite = wqueenname;
+						promotetooo = 0;
+					}
+					else if(promotetooo == 8)
+					{
+						seletedobjected.GetComponent<SpriteRenderer>().sprite = bknightname;
+						promotetooo = 0;
+					}
+					else if(promotetooo == 9)
+					{
+						seletedobjected.GetComponent<SpriteRenderer>().sprite = bbishopname;
+						promotetooo = 0;
+					}
+					else if(promotetooo == 10)
+					{
+						seletedobjected.GetComponent<SpriteRenderer>().sprite = brookname;
+						promotetooo = 0;
+					}
+					else if(promotetooo == 11)
+					{
+						seletedobjected.GetComponent<SpriteRenderer>().sprite = bqueenname;
+						promotetooo = 0;
+					}
 				}
 				promotetooo = 0;
 				//loosing castling rights
@@ -2401,93 +2473,89 @@ public class PieceManager : MonoBehaviour {
 		if (legalMoves.Count == 1) {
 		//	printArray (legalMoves[0]);
 		}
-		if (legalMoves.Count == 0) {
-			if (blackkingincheck == true)
-				print ("1-0: Checkmate. White is Victorius");
-			else if (whitekingincheck == true)
-				print ("0-1: Checkmate. Black is Victorius");
-			else
-				print ("1/2-1/2: Stalemate");
-		}
+		
 	}
 		
 
                 //Runs on FIRST frame of mouse click.
 	void OnMouseDown () {
-		seletedobjected = null;
-		RaycastHit2D hit;
-		Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-		hit = Physics2D.Raycast (ray.origin, ray.direction);
-		if (hit)
+		if((whitesTurn == true && _whitePlayerType == PlayerTypes.Human) || (whitesTurn == false && _blackPlayerType == PlayerTypes.Human))
 		{
-			//print out the name if the raycast hits something
-			isDragging = true;
-			seletedobjected = hit.transform;
-			seletedobjected.localScale = selectionscalefactor;
-			//Vector3 bringtofront = new Vector3 (seletedobjected.position.x, seletedobjected.position.y, 1);
-			//seletedobjected.transform.position = bringtofront;
-			originalLoc = seletedobjected.transform.position;
-				float x;
+			seletedobjected = null;
+			RaycastHit2D hit;
+			Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+			hit = Physics2D.Raycast (ray.origin, ray.direction);
+			if (hit)
+			{
+				//print out the name if the raycast hits something
+				isDragging = true;
+				seletedobjected = hit.transform;
+				seletedobjected.localScale = selectionscalefactor;
+				//Vector3 bringtofront = new Vector3 (seletedobjected.position.x, seletedobjected.position.y, 1);
+				//seletedobjected.transform.position = bringtofront;
+				originalLoc = seletedobjected.transform.position;
+					float x;
 
-				float y;
+					float y;
 
-				//Vector3 p;
+					//Vector3 p;
 
-				x = seletedobjected.position.x;
-				y = seletedobjected.position.y;
-				x = x / ((1.12875f));
-				y = y / ((1.12875f));
+					x = seletedobjected.position.x;
+					y = seletedobjected.position.y;
+					x = x / ((1.12875f));
+					y = y / ((1.12875f));
 
-				//odd rounding for x
-				if (Mathf.Round (Mathf.Abs (x)) % 2 != 0) {
-					x = Mathf.Round (x);
-				} else if (Mathf.Abs (x) - Mathf.Round (Mathf.Abs (x)) > 0) {
-					if (x > 0) {
-						x = Mathf.Round (x) + 1;
+					//odd rounding for x
+					if (Mathf.Round (Mathf.Abs (x)) % 2 != 0) {
+						x = Mathf.Round (x);
+					} else if (Mathf.Abs (x) - Mathf.Round (Mathf.Abs (x)) > 0) {
+						if (x > 0) {
+							x = Mathf.Round (x) + 1;
+						} else {
+							x = Mathf.Round (x) - 1;
+						}
 					} else {
-						x = Mathf.Round (x) - 1;
+						if (x > 0) {
+							x = Mathf.Round (x) - 1;
+						} else {
+							x = Mathf.Round (x) + 1;
+						}
+					}
+					x = x - 1;
+					x = x / 2;
+					x = x + 4;
+					//odd rounding for y
+					if (Mathf.Round (Mathf.Abs (y)) % 2 != 0) {
+						y = Mathf.Round (y);
+					} else if (Mathf.Abs (y) - Mathf.Round (Mathf.Abs (y)) > 0) {
+						if (y > 0) {
+							y = Mathf.Round (y) + 1;
+						} else {
+							y = Mathf.Round (y) - 1;
+						}
+					} else {
+						if (y > 0) {
+							y = Mathf.Round (y) - 1;
+						} else {
+							y = Mathf.Round (y) + 1;
+						}
+					}
+					y = y - 1;
+					y = y / 2;
+					y = y + 4;
+					originalLoccoord = new int[] {(int)x,(int)y};
+				if (seletedobjected.GetComponent<SpriteRenderer> ().sprite == bpawnname || seletedobjected.GetComponent<SpriteRenderer> ().sprite == wpawnname) {
+					if (seletedobjected.GetComponent<SpriteRenderer> ().sprite == wpawnname) {
+						enpassant = new int[]{(int)x, (int)y + 1, 0 };
+						entrack = new int[]{ (int)x, (int)y + 2,};
+					} else if (seletedobjected.GetComponent<SpriteRenderer> ().sprite == bpawnname) {
+						enpassant = new int[]{ (int)x, (int)y - 1, 1 };
+						entrack = new int[]{ (int)x, (int)y - 2};
 					}
 				} else {
-					if (x > 0) {
-						x = Mathf.Round (x) - 1;
-					} else {
-						x = Mathf.Round (x) + 1;
-					}
+					enpassant = new int[]{ 0, 0, 0 };
+					entrack = new int[]{ 0,0};
 				}
-				x = x - 1;
-				x = x / 2;
-				x = x + 4;
-				//odd rounding for y
-				if (Mathf.Round (Mathf.Abs (y)) % 2 != 0) {
-					y = Mathf.Round (y);
-				} else if (Mathf.Abs (y) - Mathf.Round (Mathf.Abs (y)) > 0) {
-					if (y > 0) {
-						y = Mathf.Round (y) + 1;
-					} else {
-						y = Mathf.Round (y) - 1;
-					}
-				} else {
-					if (y > 0) {
-						y = Mathf.Round (y) - 1;
-					} else {
-						y = Mathf.Round (y) + 1;
-					}
-				}
-				y = y - 1;
-				y = y / 2;
-				y = y + 4;
-				originalLoccoord = new int[] {(int)x,(int)y};
-			if (seletedobjected.GetComponent<SpriteRenderer> ().sprite == bpawnname || seletedobjected.GetComponent<SpriteRenderer> ().sprite == wpawnname) {
-				if (seletedobjected.GetComponent<SpriteRenderer> ().sprite == wpawnname) {
-					enpassant = new int[]{(int)x, (int)y + 1, 0 };
-					entrack = new int[]{ (int)x, (int)y + 2,};
-				} else if (seletedobjected.GetComponent<SpriteRenderer> ().sprite == bpawnname) {
-					enpassant = new int[]{ (int)x, (int)y - 1, 1 };
-					entrack = new int[]{ (int)x, (int)y - 2};
-				}
-			} else {
-				enpassant = new int[]{ 0, 0, 0 };
-				entrack = new int[]{ 0,0};
 			}
 		}
 	}
@@ -2500,193 +2568,388 @@ public class PieceManager : MonoBehaviour {
 
 	//Runs on LAST frame of mouse click
 	void OnMouseUp () {
-		if (seletedobjected != null) {
+		if((whitesTurn == true && _whitePlayerType == PlayerTypes.Human) || (whitesTurn == false && _blackPlayerType == PlayerTypes.Human))
+		{
+			if (seletedobjected != null) {
 
-			seletedobjected.localScale = Vector3.one;
-			
-			isDragging = false;
+				seletedobjected.localScale = Vector3.one;
+				
+				isDragging = false;
 
-			float x;
+				float x;
 
-			float y;
+				float y;
 
-			Vector3 p;
+				Vector3 p;
 
-			x = seletedobjected.position.x;
-			y = seletedobjected.position.y;
-			x = x / ((1.12875f));
-			y = y / ((1.12875f));
+				x = seletedobjected.position.x;
+				y = seletedobjected.position.y;
+				x = x / ((1.12875f));
+				y = y / ((1.12875f));
 
-			//odd rounding for x
-			if (Mathf.Round (Mathf.Abs(x)) % 2 != 0) {
-				x = Mathf.Round (x);
-			} else if (Mathf.Abs(x) - Mathf.Round (Mathf.Abs(x)) > 0) {
-				if (x > 0) {
-					x = Mathf.Round (x) + 1;
+				//odd rounding for x
+				if (Mathf.Round (Mathf.Abs(x)) % 2 != 0) {
+					x = Mathf.Round (x);
+				} else if (Mathf.Abs(x) - Mathf.Round (Mathf.Abs(x)) > 0) {
+					if (x > 0) {
+						x = Mathf.Round (x) + 1;
+					} else {
+						x = Mathf.Round (x) - 1;
+					}
 				} else {
-					x = Mathf.Round (x) - 1;
+					if (x > 0) {
+						x = Mathf.Round (x) - 1;
+					} else {
+						x = Mathf.Round (x) + 1;
+					}
 				}
-			} else {
-				if (x > 0) {
-					x = Mathf.Round (x) - 1;
+
+				//odd rounding for y
+				if (Mathf.Round (Mathf.Abs(y)) % 2 != 0) {
+					y = Mathf.Round (y);
+				} else if (Mathf.Abs(y) - Mathf.Round (Mathf.Abs(y)) > 0) {
+					if (y > 0) {
+						y = Mathf.Round (y) + 1;
+					} else {
+						y = Mathf.Round (y) - 1;
+					}
 				} else {
-					x = Mathf.Round (x) + 1;
+					if (y > 0) {
+						y = Mathf.Round (y) - 1;
+					} else {
+						y = Mathf.Round (y) + 1;
+					}
+				}
+
+				if(x > 7|| x < -7 || y > 7 || y < -7)
+				{
+					if((whitesTurn == true && _whitePlayerType == PlayerTypes.Human) || (whitesTurn == false && _blackPlayerType == PlayerTypes.Human))
+					{
+						seletedobjected.transform.position = originalLoc;
+					}
+					return;
+				}
+			//	print ("x is :" + x);
+			//	print ("y is:" + y);
+				//white kingside castle
+				if (seletedobjected.GetComponent<SpriteRenderer> ().sprite == wkingname && whitekingincheck == false && whitekingmoved == false && movedwikingrook == false && ((x == 5 && y == -7) || (x== 7 && y==-7))) {
+					//print ("inhereke");
+					x = 3 * (1.12875f);
+					y = -7 * (1.12875f);
+					p.x = x;
+					p.y = y;
+					p.z = -1;
+					wkingrook.transform.position = p;
+					selectedrook = wkingrook;
+					origionalrookLoc.x = 7 * (1.12875f);
+					origionalrookLoc.y = -7 * (1.12875f);
+					origionalrookLoc.z = -1;
+					x = 5 * (1.12875f);
+					y = -7 * (1.12875f);
+					p.x = x;
+					p.y = y;
+					p.z = -1;
+					//EditorApplication.isPaused = true;
+				}
+				//white queenside castle
+				else if (seletedobjected.GetComponent<SpriteRenderer> ().sprite == wkingname && whitekingincheck == false && whitekingmoved == false && movedwqueenrook == false && ((x == -3 && y == -7) || (x== -7 && y==-7))) {
+					//print ("inhereke");
+					x = -1 * (1.12875f);
+					y = -7 * (1.12875f);
+					p.x = x;
+					p.y = y;
+					p.z = -1;
+					wqueenrook.transform.position = p;
+					selectedrook = wqueenrook;
+					origionalrookLoc.x = -7 * (1.12875f);
+					origionalrookLoc.y = -7 * (1.12875f);
+					origionalrookLoc.z = -1;
+					x = -3 * (1.12875f);
+					y = -7 * (1.12875f);
+					p.x = x;
+					p.y = y;
+					p.z = -1;
+					//EditorApplication.isPaused = true;
+				}
+				//black kingside castle
+				else if (seletedobjected.GetComponent<SpriteRenderer> ().sprite == bkingname && blackkingincheck == false && blackkingmoved == false && movedbkingrook == false && ((x == 5 && y == 7) || (x== 7 && y== 7))) {
+			//		print ("inhereke");
+					x = 3 * (1.12875f);
+					y = 7 * (1.12875f);
+					p.x = x;
+					p.y = y;
+					p.z = -1;
+					bkingrook.transform.position = p;
+					selectedrook = bkingrook;
+					origionalrookLoc.x = 7 * (1.12875f);
+					origionalrookLoc.y = 7 * (1.12875f);
+					origionalrookLoc.z = -1;
+					x = 5 * (1.12875f);
+					y = 7 * (1.12875f);
+					p.x = x;
+					p.y = y;
+					p.z = -1;
+					//EditorApplication.isPaused = true;
+				}
+				//black queenside castle
+				else if (seletedobjected.GetComponent<SpriteRenderer> ().sprite == bkingname && blackkingincheck == false && blackkingmoved == false && movedbqueenrook == false && ((x == -3 && y == 7)|| (x==-7 && y==7))) {
+					//print ("inhereke");
+					x = -1 * (1.12875f);
+					y = 7 * (1.12875f);
+					p.x = x;
+					p.y = y;
+					p.z = -1;
+					bqueenrook.transform.position = p;
+					selectedrook = bqueenrook;
+					origionalrookLoc.x = -7 * (1.12875f);
+					origionalrookLoc.y = 7 * (1.12875f);
+					origionalrookLoc.z = -1;
+					x = -3 * (1.12875f);
+					y = 7 * (1.12875f);
+					p.x = x;
+					p.y = y;
+					p.z = -1;
+					//EditorApplication.isPaused = true;
+				}
+				// capture
+				else if (chessboardarray[(int)(((x - 1) / 2))+4, (int)(((y - 1) / 2)+4)] !=0)
+				{
+					wanttocapture = new int[] {(int)(((x - 1) / 2)+4), (int)(((y - 1) / 2)+4),gametocodearray[(int)(((x - 1) / 2)+4), (int)(((y - 1) / 2)+4)]-32,chessboardarray[originalLoccoord[0],originalLoccoord[1]],gametocodearray[originalLoccoord[0],originalLoccoord[1]]}; //xcoord,ycoord,goal take id, selection piece type, selection piece id
+				//	print(gametocodearray[originalLoccoord[0],originalLoccoord[0]]-32);
+					if (entrack [0] != (int)(((x - 1) / 2) + 4) || entrack [1] != (int)(((y - 1) / 2) + 4)) {
+						enpassant = new int[]{ 0, 0, 0 };
+						entrack = new int[] { 0, 0 };
+
+					}
+					x = x * (1.12875f);
+					y = y * (1.12875f);
+					p.x = x;
+					p.y = y;
+					p.z = -1;
+				}
+				else {
+					if (entrack [0] != (int)(((x - 1) / 2) + 4) || entrack [1] != (int)(((y - 1) / 2) + 4)) {
+						enpassant = new int[]{ 0, 0, 0 };
+						entrack = new int[] { 0, 0 };
+
+					}
+					x = x * (1.12875f);
+					y = y * (1.12875f);
+					p.x = x;
+					p.y = y;
+					p.z = -1;
+				}
+				seletedobjected.position = p;
+
+				GenerateMatrix ();
+				if(checkChessBoardArray[whitekingpos[0],whitekingpos[1]] == 2 || checkChessBoardArray[whitekingpos[0],whitekingpos[1]] == 3)
+				{
+				//	whitekingincheck = true;
+				}
+				else
+				{
+				//	whitekingincheck = false;
+				}
+				if(checkChessBoardArray[blackkingpos[0],blackkingpos[1]] == 1 || checkChessBoardArray[blackkingpos[0],blackkingpos[1]] == 3)
+				{
+				//	blackkingincheck = true;
+
+				}
+				else
+				{
+			//		blackkingincheck = false;
 				}
 			}
+			isLegal (chessboardarray);
+		}
+	}
 
-			//odd rounding for y
-			if (Mathf.Round (Mathf.Abs(y)) % 2 != 0) {
-				y = Mathf.Round (y);
-			} else if (Mathf.Abs(y) - Mathf.Round (Mathf.Abs(y)) > 0) {
-				if (y > 0) {
-					y = Mathf.Round (y) + 1;
-				} else {
-					y = Mathf.Round (y) - 1;
-				}
-			} else {
-				if (y > 0) {
-					y = Mathf.Round (y) - 1;
-				} else {
-					y = Mathf.Round (y) + 1;
-				}
-			}
-
-			if(x > 7|| x < -7 || y > 7 || y < -7)
+	public void Interpreter (int[,] prevcb, int[,] newcb)
+	{
+		int[,]deltacb = new int[,] { /*A File*/ {0,0,0,0,0,0,0,0}, /*B File*/ {0,0,0,0,0,0,0,0}, /*C File*/ {0,0,0,0,0,0,0,0}, /*D File*/ {0,0,0,0,0,0,0,0}, /*E File*/ {0,0,0,0,0,0,0,0}, /*F File*/ {0,0,0,0,0,0,0,0}, /*G File*/ {0,0,0,0,0,0,0,0}, /*H File*/ {0,0,0,0,0,0,0,0}};
+		int col = 0;
+		int rank = 0;
+		List<int> storedcols = new List<int>{};
+		List<int> storedranks = new List<int> {};
+		int selcol = -1;
+		int selrank = -1;
+		int destcol = -1;
+		int destrank = -1;
+		int countertest = 0;
+		int dx = -1;
+		int dy = -1;
+		int epx = -1;
+		int epy = -1;
+		foreach(int num in prevcb)
+		{
+			countertest++;	
+			if ((int)prevcb[col,rank] != (int)newcb[col,rank])
 			{
-				seletedobjected.transform.position = originalLoc;
-				return;
-			}
-		//	print ("x is :" + x);
-		//	print ("y is:" + y);
-			//white kingside castle
-			if (seletedobjected.GetComponent<SpriteRenderer> ().sprite == wkingname && whitekingincheck == false && whitekingmoved == false && movedwikingrook == false && ((x == 5 && y == -7) || (x== 7 && y==-7))) {
-				//print ("inhereke");
-				x = 3 * (1.12875f);
-				y = -7 * (1.12875f);
-				p.x = x;
-				p.y = y;
-				p.z = -1;
-				wkingrook.transform.position = p;
-				selectedrook = wkingrook;
-				origionalrookLoc.x = 7 * (1.12875f);
-				origionalrookLoc.y = -7 * (1.12875f);
-				origionalrookLoc.z = -1;
-				x = 5 * (1.12875f);
-				y = -7 * (1.12875f);
-				p.x = x;
-				p.y = y;
-				p.z = -1;
-				//EditorApplication.isPaused = true;
-			}
-			//white queenside castle
-			else if (seletedobjected.GetComponent<SpriteRenderer> ().sprite == wkingname && whitekingincheck == false && whitekingmoved == false && movedwqueenrook == false && ((x == -3 && y == -7) || (x== -7 && y==-7))) {
-				//print ("inhereke");
-				x = -1 * (1.12875f);
-				y = -7 * (1.12875f);
-				p.x = x;
-				p.y = y;
-				p.z = -1;
-				wqueenrook.transform.position = p;
-				selectedrook = wqueenrook;
-				origionalrookLoc.x = -7 * (1.12875f);
-				origionalrookLoc.y = -7 * (1.12875f);
-				origionalrookLoc.z = -1;
-				x = -3 * (1.12875f);
-				y = -7 * (1.12875f);
-				p.x = x;
-				p.y = y;
-				p.z = -1;
-				//EditorApplication.isPaused = true;
-			}
-			//black kingside castle
-			else if (seletedobjected.GetComponent<SpriteRenderer> ().sprite == bkingname && blackkingincheck == false && blackkingmoved == false && movedbkingrook == false && ((x == 5 && y == 7) || (x== 7 && y== 7))) {
-		//		print ("inhereke");
-				x = 3 * (1.12875f);
-				y = 7 * (1.12875f);
-				p.x = x;
-				p.y = y;
-				p.z = -1;
-				bkingrook.transform.position = p;
-				selectedrook = bkingrook;
-				origionalrookLoc.x = 7 * (1.12875f);
-				origionalrookLoc.y = 7 * (1.12875f);
-				origionalrookLoc.z = -1;
-				x = 5 * (1.12875f);
-				y = 7 * (1.12875f);
-				p.x = x;
-				p.y = y;
-				p.z = -1;
-				//EditorApplication.isPaused = true;
-			}
-			//black queenside castle
-			else if (seletedobjected.GetComponent<SpriteRenderer> ().sprite == bkingname && blackkingincheck == false && blackkingmoved == false && movedbqueenrook == false && ((x == -3 && y == 7)|| (x==-7 && y==7))) {
-				//print ("inhereke");
-				x = -1 * (1.12875f);
-				y = 7 * (1.12875f);
-				p.x = x;
-				p.y = y;
-				p.z = -1;
-				bqueenrook.transform.position = p;
-				selectedrook = bqueenrook;
-				origionalrookLoc.x = -7 * (1.12875f);
-				origionalrookLoc.y = 7 * (1.12875f);
-				origionalrookLoc.z = -1;
-				x = -3 * (1.12875f);
-				y = 7 * (1.12875f);
-				p.x = x;
-				p.y = y;
-				p.z = -1;
-				//EditorApplication.isPaused = true;
-			}
-			// capture
-			else if (chessboardarray[(int)(((x - 1) / 2))+4, (int)(((y - 1) / 2)+4)] !=0)
-			{
-				wanttocapture = new int[] {(int)(((x - 1) / 2)+4), (int)(((y - 1) / 2)+4),gametocodearray[(int)(((x - 1) / 2)+4), (int)(((y - 1) / 2)+4)]-32,chessboardarray[originalLoccoord[0],originalLoccoord[1]],gametocodearray[originalLoccoord[0],originalLoccoord[1]]}; //xcoord,ycoord,goal take id, selection piece type, selection piece id
-			//	print(gametocodearray[originalLoccoord[0],originalLoccoord[0]]-32);
-				if (entrack [0] != (int)(((x - 1) / 2) + 4) || entrack [1] != (int)(((y - 1) / 2) + 4)) {
-					enpassant = new int[]{ 0, 0, 0 };
-					entrack = new int[] { 0, 0 };
+				if(prevcb[col,rank] == 99)
+				{
+					if(newcb[col, rank] == 7)
+					{
+						storedcols.Add(col);
+					    storedranks.Add(rank);
+					}
+					else
+					{
+
+					}
+				}
+				else if(prevcb[col,rank] == 98)
+				{
+					if(newcb[col, rank] == 1)
+					{
+						storedcols.Add(col);
+						storedranks.Add(rank);
+					}
+					else
+					{
+						
+					}
+				}
+				else if (newcb[col,rank] == 99)
+				{
 
 				}
-				x = x * (1.12875f);
-				y = y * (1.12875f);
-				p.x = x;
-				p.y = y;
-				p.z = -1;
-			}
-			else {
-				if (entrack [0] != (int)(((x - 1) / 2) + 4) || entrack [1] != (int)(((y - 1) / 2) + 4)) {
-					enpassant = new int[]{ 0, 0, 0 };
-					entrack = new int[] { 0, 0 };
-
+				else if (newcb[col,rank] == 98)
+				{
+					
 				}
-				x = x * (1.12875f);
-				y = y * (1.12875f);
-				p.x = x;
-				p.y = y;
-				p.z = -1;
-			}
-			seletedobjected.position = p;
-
-			GenerateMatrix ();
-			if(checkChessBoardArray[whitekingpos[0],whitekingpos[1]] == 2 || checkChessBoardArray[whitekingpos[0],whitekingpos[1]] == 3)
-			{
-			//	whitekingincheck = true;
+				else if(newcb[col,rank] == 0)
+				{
+					selcol = col;
+					selrank = rank;
+			//		print("intuit");
+				}
+				else
+				{
+					deltacb[col,rank] = newcb[col,rank];
+					storedcols.Add(col);
+					storedranks.Add(rank);
+			//		print("destination is: " + col + ", " + rank);
+				}
+				//print("here");
+				//System.print();
 			}
 			else
 			{
-			//	whitekingincheck = false;
+				
 			}
-			if(checkChessBoardArray[blackkingpos[0],blackkingpos[1]] == 1 || checkChessBoardArray[blackkingpos[0],blackkingpos[1]] == 3)
-			{
-			//	blackkingincheck = true;
-
-			}
-			else
-			{
-		//		blackkingincheck = false;
+			// if length = 2 then normal move
+			// if length = 3 then enpassant
+			// if length = 4 then castle
+			if (col <= 7) {
+				if (rank < 7) {
+					rank++;
+				} else {
+					col++;
+					
+					rank = 0;
+				}
 			}
 		}
-		isLegal (chessboardarray);
+		//print("countertest is: " + countertest);
+		//printArray(prevcb);
+		//print("____________________________");
+		//print("============================");
+		//printArray(newcb);
+		if(storedcols.Count == 1 || storedcols.Count == 2)
+		{
+			
+			destcol = storedcols[0];
+			destrank = storedranks[0];
+			
+			
+		}
+		if(destcol != -1 && destrank != -1 && prevcb[destcol,destrank] != 6 & prevcb[destcol,destrank] != 12 && prevcb[destcol, destrank] != 0 && prevcb[destcol,destrank] != 99 && newcb[destcol,destrank] != 99 && newcb[destcol,destrank] != 98 && prevcb[destcol,destrank] != 98)
+		{
+			dx = destcol;
+			dy = destrank;
+		}
+		if(chessboardarray[destcol,destrank] == 6 || chessboardarray[destcol,destrank] == 12)
+		{
+			print("Trying to capture king stop it, d is : "+ dx + ", " + dy + ", sel is: " + selcol + ", " + selrank);
+			print("more info =>");
+			printArray(prevcb);
+			print("____________________________");
+			print("============================");
+			printArray(newcb);
+			Debug.Break();
+		}
+		ArtificialMove(selcol,selrank, destcol, destrank,dx, dy, epx, epy);
+		
+	}
+
+	public void ArtificialMove (int x1, int y1, int x2, int y2,int dx, int dy, int epx, int epy)
+	{
+		GameObject tempgo;
+		float nx1 = ((x1*2)-7) * (1.12875f);
+		float nx2 = ((x2*2)-7) * (1.12875f);
+		float ny1 = ((y1*2)-7) * (1.12875f);
+		float ny2 = ((y2*2)-7) * (1.12875f);
+		float ndx = ((dx*2)-7) * (1.12875f);
+		float ndy = ((dy*2)-7) * (1.12875f);
+	//	print(nx1 + ",x1 is: "+ x1 + ", " + ny1 + ", " + ", y1 is: " + y1 + ", " + nx2 + ", x2 is: " + x2 + ", " + ny2);
+		Vector3 p = new Vector3 (nx2,ny2,-1);
+
+		if(dx != -1)
+		{
+			RaycastHit2D hitdel = Physics2D.Raycast (new Vector2 (ndx,ndy), -Vector2.up);
+			if(hitdel == null || hitdel.transform == null)
+			{
+				print("raycast hit nothing dx" + "dx = " + dx + ", dy = " + dy);
+				Debug.Break();
+			}
+			else{
+				hitdel.transform.gameObject.SetActive(false);
+				print("Devated");
+			}
+		}
+	//	RaycastHit2D hit;
+	//	Ray ray = Camera.main.ScreenPointToRay(new Vector2 (nx1,ny1));
+		RaycastHit2D hit = Physics2D.Raycast (new Vector2 (nx1,ny1), -Vector2.up) ;
+		if(hit == null || hit.transform == null)
+		{
+			print("raycast hit nothing temp");
+			Debug.Break();
+		}
+		tempgo = hit.transform.gameObject;
+		//print(tempgo.name);
+		tempgo.transform.position = p;
+		isLeegal = true;
+		seletedobjected = tempgo.transform;
+		//seletedobjected = tempgo.transform;
+		if(epx != -1)
+		{
+			float nex = ((epx*2)-7) * (1.12875f);
+			float ney = ((epy*2)-7) * (1.12875f);
+		//	print(nx1 + ",x1 is: "+ x1 + ", " + ny1 + ", " + ", y1 is: " + y1 + ", " + nx2 + ", x2 is: " + x2 + ", " + ny2);
+			p = new Vector3 (nex,ney,-1);
+		//	RaycastHit2D hit;
+		//	Ray ray = Camera.main.ScreenPointToRay(new Vector2 (nx1,ny1));
+			RaycastHit2D hitite = Physics2D.Raycast (new Vector2 (nex,ney), -Vector2.up) ;
+			if(hitite == null || hitite.transform == null)
+			{
+				print("raycast hit nothing ep");
+				Debug.Break();
+			}
+			tempgo = hitite.transform.gameObject;
+			//print(tempgo.name);
+			tempgo.SetActive(false);
+			//seletedobjected = tempgo.transform;
+		}
+		seletedobjected = tempgo.transform;
+		checkupcall = false;
+	}
+
+	public void SetWPlayerType(int nnum)
+	{
+		_whitePlayerType = (PlayerTypes)nnum;
+	}
+	public void SetBPlayerType(int nnum)
+	{
+		_blackPlayerType = (PlayerTypes)nnum;
 	}
 }
