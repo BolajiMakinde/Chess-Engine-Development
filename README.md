@@ -1,2 +1,2 @@
 # Chess-Engine-Development
-Neural Network documentation soon to be commited.
+Neural Network architecture and documentation soon to be commited.
