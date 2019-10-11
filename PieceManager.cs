@@ -4,7 +4,11 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
 using System;
-
+/*To do List:
+Random Promote
+Castle Adjustments
+Check and mate fine tuning
+ */
 public class PieceManager : MonoBehaviour {
 
 	/* Piece Spacing--------
@@ -95,6 +99,10 @@ public class PieceManager : MonoBehaviour {
 	public bool printalllegalmoves;
 	public bool printgeneratedmovedecision;
 	public bool checkupcall = false;
+	public bool fcheckupcall = false;
+	public bool ffcheck = false;
+	public float wprocessdelay;
+	public float bprocessdelay;
 	// Use this for initialization
 	void Start () {
 		int count = 0;
@@ -148,22 +156,36 @@ public class PieceManager : MonoBehaviour {
 		{
 			if(checkupcall == false)
 			{
-				isLegal(chessboardarray);
-				checkupcall = true;
-				GenerateMatrix();
-				int[,] feedcb = Engines[0].GetComponent<RandomENGINE>().Calc(chessboardarray);
-				Interpreter(chessboardarray, feedcb);
-				chessboardarray = feedcb;
-				whitesTurn = !whitesTurn;
-				//GenerateMatrix();
-				//isLegal(feedcb);
+				if(whitesTurn == true && fcheckupcall == false && ffcheck == false)
+				{
+					StartCoroutine(DelayProcess(wprocessdelay));
+				}
+				else if (whitesTurn == false && fcheckupcall == false && ffcheck == false)
+				{
+					StartCoroutine(DelayProcess(bprocessdelay));
+				}
+				if(fcheckupcall == true)
+				{
+					fcheckupcall = false;
+					checkupcall = true;
+					GenerateMatrix();
+					int[,] feedcb = Engines[0].GetComponent<RandomENGINE>().Calc(chessboardarray);
+					Interpreter(chessboardarray, feedcb);
+					chessboardarray = feedcb;
+					whitesTurn = !whitesTurn;
+					GenerateMatrix();
+					ffcheck = false;
+					//isLegal(feedcb);
+				}
+				//fcheckupcall = false;
+				
 			}
 			else
 			{
 				print("check in prevented");
 			}
 		}
-		
+		//fcheckupcall = false;
 		if (printingarray == true) {
 			printArray (chessboardarray);
 			printingarray = false;
@@ -193,6 +215,7 @@ public class PieceManager : MonoBehaviour {
 			}
 			printalllegalmoves = false;
 		}
+		fcheckupcall = false;
 	}
 
 	public bool kinginchecks (int[] kingloc, int[,] kcheckarray)
@@ -1526,62 +1549,59 @@ public class PieceManager : MonoBehaviour {
 				{
 					blackkingincheck = false;
 				}
-				foreach(GameObject piece in chesspieces)
+				//foreach(GameObject piece in chesspieces)
+				//{
+				//	int kad = 0;
+				//	if(piece.activeInHierarchy == true)
+				//	{
+				//		
+				//	}
+				//	kad++;
+				//}
+				if (promotetooo!=0)
 				{
-					int kad = 0;
-					if(piece.activeInHierarchy == true)
-					{
-						
-					}
-					kad++;
+				//	print ("promote to is: "+ ", generated array is: ");
+				//	printArray(generatedarray);
 				}
-				if(seletedobjected.gameObject.GetComponent<SpriteRenderer>().sprite == wpawnname || seletedobjected.gameObject.GetComponent<SpriteRenderer>().sprite == bpawnname)
+				if(promotetooo == 2)
 				{
-					if (promotetooo!=0)
-					{
-					//	print ("promote to is: "+ ", generated array is: ");
-					//	printArray(generatedarray);
-					}
-					if(promotetooo == 2)
-					{
-						seletedobjected.GetComponent<SpriteRenderer>().sprite = wknightname;
-						promotetooo = 0;
-					}
-					else if(promotetooo == 3)
-					{
-						seletedobjected.GetComponent<SpriteRenderer>().sprite = wbishopname;
-						promotetooo = 0;
-					}
-					else if(promotetooo == 4)
-					{
-						seletedobjected.GetComponent<SpriteRenderer>().sprite = wrookname;
-						promotetooo = 0;
-					}
-					else if(promotetooo == 5)
-					{
-						seletedobjected.GetComponent<SpriteRenderer>().sprite = wqueenname;
-						promotetooo = 0;
-					}
-					else if(promotetooo == 8)
-					{
-						seletedobjected.GetComponent<SpriteRenderer>().sprite = bknightname;
-						promotetooo = 0;
-					}
-					else if(promotetooo == 9)
-					{
-						seletedobjected.GetComponent<SpriteRenderer>().sprite = bbishopname;
-						promotetooo = 0;
-					}
-					else if(promotetooo == 10)
-					{
-						seletedobjected.GetComponent<SpriteRenderer>().sprite = brookname;
-						promotetooo = 0;
-					}
-					else if(promotetooo == 11)
-					{
-						seletedobjected.GetComponent<SpriteRenderer>().sprite = bqueenname;
-						promotetooo = 0;
-					}
+					seletedobjected.GetComponent<SpriteRenderer>().sprite = wknightname;
+					promotetooo = 0;
+				}
+				else if(promotetooo == 3)
+				{
+					seletedobjected.GetComponent<SpriteRenderer>().sprite = wbishopname;
+					promotetooo = 0;
+				}
+				else if(promotetooo == 4)
+				{
+					seletedobjected.GetComponent<SpriteRenderer>().sprite = wrookname;
+					promotetooo = 0;
+				}
+				else if(promotetooo == 5)
+				{
+					seletedobjected.GetComponent<SpriteRenderer>().sprite = wqueenname;
+					promotetooo = 0;
+				}
+				else if(promotetooo == 8)
+				{
+					seletedobjected.GetComponent<SpriteRenderer>().sprite = bknightname;
+					promotetooo = 0;
+				}
+				else if(promotetooo == 9)
+				{
+					seletedobjected.GetComponent<SpriteRenderer>().sprite = bbishopname;
+					promotetooo = 0;
+				}
+				else if(promotetooo == 10)
+				{
+					seletedobjected.GetComponent<SpriteRenderer>().sprite = brookname;
+					promotetooo = 0;
+				}
+				else if(promotetooo == 11)
+				{
+					seletedobjected.GetComponent<SpriteRenderer>().sprite = bqueenname;
+					promotetooo = 0;
 				}
 				promotetooo = 0;
 				//loosing castling rights
@@ -1926,7 +1946,7 @@ public class PieceManager : MonoBehaviour {
             else if (num == 3 && whitesTurn == true)//bishop white moves
             {
 				
-				for (int i = 1;col + i <= 7 && rank + i <= 7 && (testmatrix [col + i, rank + i] > 6 || testmatrix[col + i, rank + i] == 0) && endder == false; i++) {
+				for (int i = 1;col + i <= 7 && rank + i <= 7 && (testmatrix [col + i, rank + i] > 6 || testmatrix[col + i, rank + i] == 0) && (i == 1 || testmatrix[col + i-1, rank + i-1] == 0) && endder == false; i++) {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col + i, rank + i] = 3;
@@ -1936,7 +1956,7 @@ public class PieceManager : MonoBehaviour {
 					}
 				}
 				endder = false;
-				for (int i = 1;col - i >= 0 && rank + i <= 7 && (testmatrix[col - i, rank + i] > 6 || testmatrix[col - i, rank + i] == 0 && endder == false); i++) {
+				for (int i = 1;col - i >= 0 && rank + i <= 7 && (testmatrix[col - i, rank + i] > 6 || testmatrix[col - i, rank + i] == 0 && endder == false) && (i == 1 || testmatrix [col - i + 1, rank + i - 1] == 0); i++) {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col - i, rank + i] = 3;
@@ -1947,7 +1967,7 @@ public class PieceManager : MonoBehaviour {
 
 				}
 				endder = false;
-				for (int i = 1;col + i <= 7 && rank - i >= 0 && (testmatrix[col + i, rank - i] > 6 || testmatrix[col + i, rank - i] == 0 && endder == false); i++) {
+				for (int i = 1;col + i <= 7 && rank - i >= 0 && (testmatrix[col + i, rank - i] > 6 || testmatrix[col + i, rank - i] == 0 && endder == false) && (i == 1 || testmatrix [col + i - 1, rank - i + 1] == 0); i++) {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col + i, rank - i] = 3;
@@ -1957,7 +1977,7 @@ public class PieceManager : MonoBehaviour {
 					}
 				}
 				endder = false;
-				for (int i = 1;col - i >= 0 && rank - i >= 0 && (testmatrix[col - i, rank - i] > 6 || testmatrix[col - i, rank - i] == 0 && endder == false); i++) {
+				for (int i = 1;col - i >= 0 && rank - i >= 0 && (testmatrix[col - i, rank - i] > 6 || testmatrix[col - i, rank - i] == 0 && endder == false) && (i == 1 || testmatrix [col - i + 1, rank - i + 1] == 0); i++) {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col - i, rank - i] = 3;
@@ -1970,7 +1990,7 @@ public class PieceManager : MonoBehaviour {
 			else if (num == 9 && whitesTurn == false)//bishop black moves
 			{
 				endder = false;
-				for (int i = 1;col + i <= 7 && rank + i <= 7 && testmatrix [col + i, rank + i] < 6 && endder == false; i++) {
+				for (int i = 1;col + i <= 7 && rank + i <= 7 && testmatrix [col + i, rank + i] < 6 && (i == 1 || testmatrix [col + i - 1, rank + i - 1] == 0) && endder == false; i++) {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col + i, rank + i] = 9;
@@ -1980,7 +2000,7 @@ public class PieceManager : MonoBehaviour {
 					}
 				}
 				endder = false;
-				for (int i = 1;col - i >= 0 && rank + i <= 7 && testmatrix[col - i, rank + i] < 6 && endder == false; i++) {
+				for (int i = 1;col - i >= 0 && rank + i <= 7 && testmatrix[col - i, rank + i] < 6 && (i == 1 || testmatrix [col - i + 1, rank + i - 1] == 0) && endder == false; i++) {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col - i, rank + i] = 9;
@@ -1990,7 +2010,7 @@ public class PieceManager : MonoBehaviour {
 					}
 				}
 				endder = false;
-				for (int i = 1;col + i <= 7 && rank - i >= 0 && testmatrix[col + i, rank - i] < 6 && endder == false; i++) {
+				for (int i = 1;col + i <= 7 && rank - i >= 0 && testmatrix[col + i, rank - i] < 6 && (i == 1 || testmatrix [col + i - 1, rank - i + 1] == 0) && endder == false; i++) {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col + i, rank - i] = 9;
@@ -2000,7 +2020,7 @@ public class PieceManager : MonoBehaviour {
 					}
 				}
 				endder = false;
-				for (int i = 1;col - i >= 0 && rank - i >= 0 && testmatrix[col - i, rank - i] < 6 && endder == false; i++) {
+				for (int i = 1;col - i >= 0 && rank - i >= 0 && testmatrix[col - i, rank - i] < 6 && (i == 1 || testmatrix [col - i + 1, rank - i + 1] == 0) && endder == false; i++) {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col - i, rank - i] = 9;
@@ -2013,7 +2033,7 @@ public class PieceManager : MonoBehaviour {
             else if (num == 4 && whitesTurn == true)//white rook legal moves 
             {
 				endder = false;
-				for (int i = 1; rank + i <= 7 && (testmatrix[col,rank+i] > 6 || testmatrix[col, rank + i] == 0) && endder == false;i++) {
+				for (int i = 1; rank + i <= 7 && (testmatrix[col,rank+i] > 6 || testmatrix[col, rank + i] == 0) && (i == 1 || testmatrix [col, rank + i - 1] == 0) && endder == false;i++) {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col, rank + i] = 4;
@@ -2023,7 +2043,7 @@ public class PieceManager : MonoBehaviour {
 					}
 				}
 				endder = false;
-				for (int i = 1; col + i <= 7 && (testmatrix[col+i,rank] > 6 || testmatrix[col+i, rank] == 0) && endder == false;i++) {
+				for (int i = 1; col + i <= 7 && (testmatrix[col+i,rank] > 6 || testmatrix[col+i, rank] == 0) && (i == 1 || testmatrix [col + i - 1, rank] == 0) && endder == false;i++) {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col + i, rank] = 4;
@@ -2033,7 +2053,7 @@ public class PieceManager : MonoBehaviour {
 					}
 				}
 				endder = false;
-				for (int i = 1; rank - i >= 0 && (testmatrix[col,rank-i] > 6 || testmatrix[col, rank -i] == 0) && endder == false;i++) {
+				for (int i = 1; rank - i >= 0 && (testmatrix[col,rank-i] > 6 || testmatrix[col, rank -i] == 0) && (i == 1 || testmatrix [col, rank - i + 1] == 0) && endder == false;i++) {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col, rank - i] = 4;
@@ -2043,7 +2063,7 @@ public class PieceManager : MonoBehaviour {
 					}
 				}
 				endder = false;
-				for (int i = 1; col - i >= 0 && (testmatrix[col-i,rank] > 6 || testmatrix[col-i, rank] == 0) && endder == false;i++) {
+				for (int i = 1; col - i >= 0 && (testmatrix[col-i,rank] > 6 || testmatrix[col-i, rank] == 0) && endder == false && (i == 1 || testmatrix [col - i + 1, rank] == 0);i++) {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col-i, rank] = 4;
@@ -2056,7 +2076,7 @@ public class PieceManager : MonoBehaviour {
 			else if (num == 10 && whitesTurn == false)//black rook legal moves 
 			{
 				endder = false;
-				for (int i = 1; rank + i <= 7 && testmatrix[col, rank + i] < 6;i++) {
+				for (int i = 1; rank + i <= 7 && testmatrix[col, rank + i] < 6 && (i == 1 || testmatrix [col, rank + i -1] == 0);i++) {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col, rank + i] = 10;
@@ -2066,7 +2086,7 @@ public class PieceManager : MonoBehaviour {
 					}
 				}
 				endder = false;
-				for (int i = 1; col + i <= 7 && testmatrix[col + i, rank] < 6;i++) {
+				for (int i = 1; col + i <= 7 && testmatrix[col + i, rank] < 6  && (i == 1 || testmatrix [col + i - 1, rank] == 0);i++) {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col + i, rank] = 10;
@@ -2076,7 +2096,7 @@ public class PieceManager : MonoBehaviour {
 					}
 				}
 				endder = false;
-				for (int i = 1; rank - i >= 0 && testmatrix[col, rank - i] < 6;i++) {
+				for (int i = 1; rank - i >= 0 && testmatrix[col, rank - i] < 6 && (i == 1 || testmatrix [col, rank - i + 1] == 0);i++) {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col, rank - i] = 10;
@@ -2086,7 +2106,7 @@ public class PieceManager : MonoBehaviour {
 					}
 				}
 				endder = false;
-				for (int i = 1; col - i >= 0 && testmatrix[col - i, rank] < 6;i++) {
+				for (int i = 1; col - i >= 0 && testmatrix[col - i, rank] < 6 && (i == 1 || testmatrix [col - i + 1, rank] == 0);i++) {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col-i, rank] = 10;
@@ -2100,7 +2120,7 @@ public class PieceManager : MonoBehaviour {
 			else if (num == 5 && whitesTurn == true) {
 				//diagonal moves
 				endder = false;
-				for (int i = 1;col + i <= 7 && rank + i <= 7 && (testmatrix [col + i, rank + i] > 6 || testmatrix [col + i, rank + i] == 0); i++) {
+				for (int i = 1;col + i <= 7 && rank + i <= 7 && (testmatrix [col + i, rank + i] > 6 || testmatrix [col + i, rank + i] == 0) && (i == 1 || testmatrix [col + i - 1, rank + i - 1] == 0); i++) {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col + i, rank + i] = 5;
@@ -2110,7 +2130,7 @@ public class PieceManager : MonoBehaviour {
 					}
 				}
 				endder = false;
-				for (int i = 1;col - i >= 0 && rank + i <= 7 && (testmatrix [col - i, rank + i] > 6 || testmatrix [col - i, rank + i] == 0); i++) {
+				for (int i = 1;col - i >= 0 && rank + i <= 7 && (testmatrix [col - i, rank + i] > 6 || testmatrix [col - i, rank + i] == 0) && (i == 1 || testmatrix [col - i + 1, rank + i - 1] == 0); i++) {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col - i, rank + i] = 5;
@@ -2120,7 +2140,7 @@ public class PieceManager : MonoBehaviour {
 					}
 				}
 				endder = false;
-				for (int i = 1;col + i <= 7 && rank - i >= 0 && (testmatrix [col + i, rank - i] > 6 || testmatrix [col + i, rank - i] == 0); i++) {
+				for (int i = 1;col + i <= 7 && rank - i >= 0 && (testmatrix [col + i, rank - i] > 6 || testmatrix [col + i, rank - i] == 0) && (i == 1 || testmatrix [col + i - 1, rank - i + 1] == 0); i++) {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col + i, rank - i] = 5;
@@ -2130,7 +2150,7 @@ public class PieceManager : MonoBehaviour {
 					}
 				}
 				endder = false;
-				for (int i = 1;col - i >= 0 && rank - i >= 0 && (testmatrix [col - i, rank - i] > 6 || testmatrix [col - i, rank - i] == 0); i++) {
+				for (int i = 1;col - i >= 0 && rank - i >= 0 && (testmatrix [col - i, rank - i] > 6 || testmatrix [col - i, rank - i] == 0) && (i == 1 || testmatrix [col - i + 1, rank - i + 1] == 0); i++) {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col - i, rank - i] = 5;
@@ -2141,7 +2161,7 @@ public class PieceManager : MonoBehaviour {
 				}
 				endder = false;
 				//horizontal and vertical moves
-				for (int i = 1; rank + i <= 7 && (testmatrix [col, rank + i] > 6 || testmatrix [col, rank + i] == 0);i++) {
+				for (int i = 1; rank + i <= 7 && (testmatrix [col, rank + i] > 6 || testmatrix [col, rank + i] == 0) && (i == 1 || testmatrix [col, rank + i-1] == 0);i++) {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col, rank + i] = 5;
@@ -2151,7 +2171,7 @@ public class PieceManager : MonoBehaviour {
 					}
 				}
 				endder = false;
-				for (int i = 1; col + i <= 7 && (testmatrix [col + i, rank] > 6 || testmatrix [col + i, rank] == 0);i++) {
+				for (int i = 1; col + i <= 7 && (testmatrix [col + i, rank] > 6 || testmatrix [col + i, rank] == 0) && (i == 1 || testmatrix [col + i - 1, rank] == 0);i++) {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col + i, rank] = 5;
@@ -2161,7 +2181,7 @@ public class PieceManager : MonoBehaviour {
 					}
 				}
 				endder = false;
-				for (int i = 1; rank - i >= 0 && (testmatrix [col, rank - i] > 6 || testmatrix [col, rank - i] == 0);i++) {
+				for (int i = 1; rank - i >= 0 && (testmatrix [col, rank - i] > 6 || testmatrix [col, rank - i] == 0) && (i == 1 || testmatrix [col, rank - i + 1] == 0);i++) {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col, rank - i] = 5;
@@ -2171,7 +2191,7 @@ public class PieceManager : MonoBehaviour {
 					}
 				}
 				endder = false;
-				for (int i = 1; col - i >= 0 && (testmatrix [col - i, rank] > 6 || testmatrix [col - i, rank] == 0);i++) {
+				for (int i = 1; col - i >= 0 && (testmatrix [col - i, rank] > 6 || testmatrix [col - i, rank] == 0) && (i == 1 || testmatrix [col - i + 1, rank] == 0);i++) {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col-i, rank] = 5;
@@ -2185,7 +2205,7 @@ public class PieceManager : MonoBehaviour {
 			else if (num == 11 && whitesTurn == false) {
 				//diagonal moves
 				endder = false;
-				for (int i = 1;col + i <= 7 && rank + i <= 7 && testmatrix [col + i, rank + i] == 0; i++) {
+				for (int i = 1;col + i <= 7 && rank + i <= 7 && testmatrix [col + i, rank + i] == 0 && (i == 1 || testmatrix [col + i - 1, rank + i - 1] == 0); i++) {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col + i, rank + i] = 11;
@@ -2195,7 +2215,7 @@ public class PieceManager : MonoBehaviour {
 					}
 				}
 				endder = false;
-				for (int i = 1;col - i >= 0 && rank + i <= 7 && testmatrix[col - i, rank + i] == 0; i++) {
+				for (int i = 1;col - i >= 0 && rank + i <= 7 && testmatrix[col - i, rank + i] == 0 && (i == 1 || testmatrix [col - i + 1, rank + i - 1] == 0); i++) {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col - i, rank + i] = 11;
@@ -2205,7 +2225,7 @@ public class PieceManager : MonoBehaviour {
 					}
 				}
 				endder = false;
-				for (int i = 1;col + i <= 7 && rank - i >= 0 && testmatrix[col + i, rank - i] < 6; i++) {
+				for (int i = 1;col + i <= 7 && rank - i >= 0 && testmatrix[col + i, rank - i] < 6 && (i == 1 || testmatrix [col + i - 1, rank - i + 1] == 0); i++) {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col + i, rank - i] = 11;
@@ -2215,7 +2235,7 @@ public class PieceManager : MonoBehaviour {
 					}
 				}
 				endder = false;
-				for (int i = 1;col - i >= 0 && rank - i >= 0 && testmatrix[col - i, rank - i] < 6; i++) {
+				for (int i = 1;col - i >= 0 && rank - i >= 0 && testmatrix[col - i, rank - i] < 6 && (i == 1 || testmatrix [col - i + 1, rank - i + 1] == 0); i++) {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col - i, rank - i] = 11;
@@ -2226,7 +2246,7 @@ public class PieceManager : MonoBehaviour {
 				}
 				//horizontal and vertical moves
 				endder = false;
-				for (int i = 1; rank + i <= 7 && testmatrix[col, rank + i] < 6;i++) {
+				for (int i = 1; rank + i <= 7 && testmatrix[col, rank + i] < 6 && (i == 1 || testmatrix [col, rank + i - 1] == 0);i++) {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col, rank + i] = 11;
@@ -2236,7 +2256,7 @@ public class PieceManager : MonoBehaviour {
 					}
 				}
 				endder = false;
-				for (int i = 1; col + i <= 7 && testmatrix[col + i, rank] < 6;i++) {
+				for (int i = 1; col + i <= 7 && testmatrix[col + i, rank] < 6 && (i == 1 || testmatrix [col + i - 1, rank] == 0);i++) {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col + i, rank] = 11;
@@ -2246,7 +2266,7 @@ public class PieceManager : MonoBehaviour {
 					}
 				}
 				endder = false;
-				for (int i = 1; rank - i >= 0 && testmatrix[col, rank - i] < 6;i++) {
+				for (int i = 1; rank - i >= 0 && testmatrix[col, rank - i] < 6 && (i == 1 || testmatrix [col, rank - i + 1] == 0);i++) {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col, rank - i] = 11;
@@ -2256,7 +2276,7 @@ public class PieceManager : MonoBehaviour {
 					}
 				}
 				endder = false;
-				for (int i = 1; col - i >= 0 && testmatrix[col - i, rank] < 6;i++) {
+				for (int i = 1; col - i >= 0 && testmatrix[col - i, rank] < 6 && (i == 1 || testmatrix [col - i + 1, rank] == 0);i++) {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col-i, rank] = 11;
@@ -2871,11 +2891,6 @@ public class PieceManager : MonoBehaviour {
 		if(chessboardarray[destcol,destrank] == 6 || chessboardarray[destcol,destrank] == 12)
 		{
 			print("Trying to capture king stop it, d is : "+ dx + ", " + dy + ", sel is: " + selcol + ", " + selrank);
-			print("more info =>");
-			printArray(prevcb);
-			print("____________________________");
-			print("============================");
-			printArray(newcb);
 			Debug.Break();
 		}
 		ArtificialMove(selcol,selrank, destcol, destrank,dx, dy, epx, epy);
@@ -2905,6 +2920,7 @@ public class PieceManager : MonoBehaviour {
 			else{
 				hitdel.transform.gameObject.SetActive(false);
 				print("Devated");
+				
 			}
 		}
 	//	RaycastHit2D hit;
@@ -2920,6 +2936,7 @@ public class PieceManager : MonoBehaviour {
 		tempgo.transform.position = p;
 		isLeegal = true;
 		seletedobjected = tempgo.transform;
+		//if(destcol == 7 && seletedobjected.GetComponent<)
 		//seletedobjected = tempgo.transform;
 		if(epx != -1)
 		{
@@ -2940,7 +2957,7 @@ public class PieceManager : MonoBehaviour {
 			tempgo.SetActive(false);
 			//seletedobjected = tempgo.transform;
 		}
-		seletedobjected = tempgo.transform;
+
 		checkupcall = false;
 	}
 
@@ -2952,4 +2969,14 @@ public class PieceManager : MonoBehaviour {
 	{
 		_blackPlayerType = (PlayerTypes)nnum;
 	}
+
+	 IEnumerator DelayProcess(float delay)
+    {
+		ffcheck = true;
+        //This is a coroutine
+		fcheckupcall = false;
+         yield return new WaitForSeconds(delay);    //Wait one frame
+		fcheckupcall = true;
+    }
+
 }
