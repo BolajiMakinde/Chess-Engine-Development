@@ -4,6 +4,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
 using System;
+using System.IO;
 /*To do List:
 Random Promote
 Castle Adjustments
@@ -103,6 +104,12 @@ public class PieceManager : MonoBehaviour {
 	public bool ffcheck = false;
 	public float wprocessdelay;
 	public float bprocessdelay;
+	public bool mwqueen = false;
+	public bool mbqueen = false;
+	public int moveCount = 0;
+	public bool _createPGN;
+	string movedpiece = "";
+	public string lastpgnline = "";
 	// Use this for initialization
 	void Start () {
 		int count = 0;
@@ -115,6 +122,7 @@ public class PieceManager : MonoBehaviour {
 	}
 	
 	// Update is called once per frame
+
 	void Update () {
 
 		if (legalMoves.Count == 0) {
@@ -156,6 +164,7 @@ public class PieceManager : MonoBehaviour {
 		{
 			if(checkupcall == false)
 			{
+				seletedobjected = null;
 				if(whitesTurn == true && fcheckupcall == false && ffcheck == false)
 				{
 					StartCoroutine(DelayProcess(wprocessdelay));
@@ -170,7 +179,11 @@ public class PieceManager : MonoBehaviour {
 					checkupcall = true;
 					GenerateMatrix();
 					int[,] feedcb = Engines[0].GetComponent<RandomENGINE>().Calc(chessboardarray);
-					Interpreter(chessboardarray, feedcb);
+					Interpreter(chessboardarray, feedcb, false);
+					if(_createPGN == true)
+					{
+						UpdatePGN(chessboardarray, feedcb);
+					}
 					chessboardarray = feedcb;
 					whitesTurn = !whitesTurn;
 					GenerateMatrix();
@@ -308,6 +321,12 @@ public class PieceManager : MonoBehaviour {
 			else if (/*white knight checks*/trueking == 12 && ((kingloc[0]+1 <= 7 && kingloc[1]+2 <= 7 && kcheckarray[kingloc[0]+1,kingloc[1]+2] == 2) || (kingloc[0]+1 <= 7 && kingloc[1]-2 >= 0 && kcheckarray[kingloc[0]+1,kingloc[1]-2] == 2) || (kingloc[0]-1 >= 0 && kingloc[1]+2 <= 7 && kcheckarray[kingloc[0]-1,kingloc[1]+2] == 2) || (kingloc[0]-1 >= 0 && kingloc[1]-2 >= 0 && kcheckarray[kingloc[0]-1,kingloc[1]-2] == 2) || (kingloc[0]+2 <= 7 && kingloc[1]+1 <= 7 && kcheckarray[kingloc[0]+2,kingloc[1]+1] == 2) || (kingloc[0]+2 <= 7 && kingloc[1]-1 >= 0 && kcheckarray[kingloc[0]+2,kingloc[1]-1] == 2) || (kingloc[0]-2 >= 0 && kingloc[1]+1 <= 7 && kcheckarray[kingloc[0]-2,kingloc[1]+1] == 2) || (kingloc[0]-2 >= 0 && kingloc[1]-1 >= 0 && kcheckarray[kingloc[0]-2,kingloc[1]-1] == 2))) {
 			return true;
 		}
+		else if (/*white king checks*/trueking == 12 && ((kingloc[0]+1 <= 7 && kingloc[1]+1 <= 7 && kcheckarray[kingloc[0]+1,kingloc[1]+1] == 6) || (kingloc[0]+1 <= 7 && kingloc[1]-1 >= 0 && kcheckarray[kingloc[0]+1,kingloc[1]-1] == 6) || (kingloc[0]+1 <= 7 && kcheckarray[kingloc[0]+1,kingloc[1]] == 6) || (kingloc[1]+1 <= 7 && kcheckarray[kingloc[0],kingloc[1]+1] == 6) || (kingloc[1]-1 >= 0 && kcheckarray[kingloc[0],kingloc[1]-1] == 6) || (kingloc[0]-1 >= 0 && kingloc[1]+1 <= 7 && kcheckarray[kingloc[0]-1,kingloc[1]+1] == 6) || (kingloc[0]-1 >= 0 && kcheckarray[kingloc[0]-1,kingloc[1]] == 6) || (kingloc[0]-1 >= 0 && kingloc[1]-1 >= 0 && kcheckarray[kingloc[0]-1,kingloc[1]-1] == 6))) {
+			return true;
+		}
+		else if (/*black king checks*/trueking == 6 && ((kingloc[0]+1 <= 7 && kingloc[1]+1 <= 7 && kcheckarray[kingloc[0]+1,kingloc[1]+1] == 12) || (kingloc[0]+1 <= 7 && kingloc[1]-1 >= 0 && kcheckarray[kingloc[0]+1,kingloc[1]-1] == 12) || (kingloc[0]+1 <= 7 && kcheckarray[kingloc[0]+1,kingloc[1]] == 12) || (kingloc[1]+1 <= 7 && kcheckarray[kingloc[0],kingloc[1]+1] == 12) || (kingloc[1]-1 >= 0 && kcheckarray[kingloc[0],kingloc[1]-1] == 12) || (kingloc[0]-1 >= 0 && kingloc[1]+1 <= 7 && kcheckarray[kingloc[0]-1,kingloc[1]+1] == 12) || (kingloc[0]-1 >= 0 && kcheckarray[kingloc[0]-1,kingloc[1]] == 12) || (kingloc[0]-1 >= 0 && kingloc[1]-1 >= 0 && kcheckarray[kingloc[0]-1,kingloc[1]-1] == 12))) {
+			return true;
+		}
 		else {
 			return false;
 		}
@@ -394,7 +413,7 @@ public class PieceManager : MonoBehaviour {
 			if(piece.activeInHierarchy == true && k!=wanttocapture[2])
 			{
 				//gametocodearray[x1,y1] = k;
-				if(x1 == wanttocapture[0] && y1 == wanttocapture[1] && x1 != -1 && y1 != -1)
+				if(x1 == wanttocapture[0] && y1 == wanttocapture[1] && x1 != -1 && y1 != -1 && ((whitesTurn == true && _whitePlayerType == PlayerTypes.Human) || (whitesTurn == false && _blackPlayerType == PlayerTypes.Human)))
 				{
 					print("im not supposed to be here, [0] is " + wanttocapture[0] + ", x1 is: "+ x1+ "[1] is "+ wanttocapture[1]+ ", y1 is "+ y1);
 					if((wanttocapture[3] !=1 || y1 !=7) && (y1!=0 || wanttocapture[3] !=7))
@@ -1526,7 +1545,7 @@ public class PieceManager : MonoBehaviour {
 			promotetooo = 0;
 		}
 		else{
-			if(seletedobjected != null)
+			if(seletedobjected != null && ((whitesTurn == true && _whitePlayerType == PlayerTypes.Human) || (whitesTurn == false && _blackPlayerType == PlayerTypes.Human)))
 			{
 				if(wanttocapture[2]> -1)
 				{
@@ -1535,10 +1554,19 @@ public class PieceManager : MonoBehaviour {
 					print(wanttocapture[2]);
 				}
 				wanttocapture = new int[] {-1,-1,-1,-1,-1};
+				if(_createPGN == true)
+				{
+					UpdatePGN(chessboardarray, generatedarray);
+				}
 				chessboardarray = generatedarray;
-				whitesTurn = !whitesTurn;
+				if((whitesTurn == true && PlayerTypes.Human == _whitePlayerType) || (PlayerTypes.Human == _blackPlayerType && whitesTurn == false)) {
+					whitesTurn = !whitesTurn;
+					
+				}
+				moveCount++;
 				if(printlegality){
 					print("Legal!");
+					
 			//		printArray(generatedarray);
 				}
 				if(checkChessBoardArray[kingpostemp[2],kingpostemp[3]] == 1 || checkChessBoardArray[kingpostemp[2],kingpostemp[3]] == 3)
@@ -1549,6 +1577,7 @@ public class PieceManager : MonoBehaviour {
 				{
 					blackkingincheck = false;
 				}
+				
 				//foreach(GameObject piece in chesspieces)
 				//{
 				//	int kad = 0;
@@ -1563,45 +1592,51 @@ public class PieceManager : MonoBehaviour {
 				//	print ("promote to is: "+ ", generated array is: ");
 				//	printArray(generatedarray);
 				}
-				if(promotetooo == 2)
+				if(seletedobjected.GetComponent<SpriteRenderer>().sprite == wpawnname )
 				{
-					seletedobjected.GetComponent<SpriteRenderer>().sprite = wknightname;
-					promotetooo = 0;
+					if(promotetooo == 2 && _whitePlayerType == PlayerTypes.Human)
+					{
+						seletedobjected.GetComponent<SpriteRenderer>().sprite = wknightname;
+						promotetooo = 0;
+					}
+					else if(promotetooo == 3 && _whitePlayerType == PlayerTypes.Human)
+					{
+						seletedobjected.GetComponent<SpriteRenderer>().sprite = wbishopname;
+						promotetooo = 0;
+					}
+					else if(promotetooo == 4 && _whitePlayerType == PlayerTypes.Human)
+					{
+						seletedobjected.GetComponent<SpriteRenderer>().sprite = wrookname;
+						promotetooo = 0;
+					}
+					else if(promotetooo == 5 && _whitePlayerType == PlayerTypes.Human)
+					{
+						seletedobjected.GetComponent<SpriteRenderer>().sprite = wqueenname;
+						promotetooo = 0;
+					}
 				}
-				else if(promotetooo == 3)
+				else if(seletedobjected.GetComponent<SpriteRenderer>().sprite == bpawnname)
 				{
-					seletedobjected.GetComponent<SpriteRenderer>().sprite = wbishopname;
-					promotetooo = 0;
-				}
-				else if(promotetooo == 4)
-				{
-					seletedobjected.GetComponent<SpriteRenderer>().sprite = wrookname;
-					promotetooo = 0;
-				}
-				else if(promotetooo == 5)
-				{
-					seletedobjected.GetComponent<SpriteRenderer>().sprite = wqueenname;
-					promotetooo = 0;
-				}
-				else if(promotetooo == 8)
-				{
-					seletedobjected.GetComponent<SpriteRenderer>().sprite = bknightname;
-					promotetooo = 0;
-				}
-				else if(promotetooo == 9)
-				{
-					seletedobjected.GetComponent<SpriteRenderer>().sprite = bbishopname;
-					promotetooo = 0;
-				}
-				else if(promotetooo == 10)
-				{
-					seletedobjected.GetComponent<SpriteRenderer>().sprite = brookname;
-					promotetooo = 0;
-				}
-				else if(promotetooo == 11)
-				{
-					seletedobjected.GetComponent<SpriteRenderer>().sprite = bqueenname;
-					promotetooo = 0;
+					if(promotetooo == 8 && _blackPlayerType == PlayerTypes.Human)
+					{
+						seletedobjected.GetComponent<SpriteRenderer>().sprite = bknightname;
+						promotetooo = 0;
+					}
+					else if(promotetooo == 9 && _blackPlayerType == PlayerTypes.Human)
+					{
+						seletedobjected.GetComponent<SpriteRenderer>().sprite = bbishopname;
+						promotetooo = 0;
+					}
+					else if(promotetooo == 10 && _blackPlayerType == PlayerTypes.Human)
+					{
+						seletedobjected.GetComponent<SpriteRenderer>().sprite = brookname;
+						promotetooo = 0;
+					}
+					else if(promotetooo == 11 && _blackPlayerType == PlayerTypes.Human)
+					{
+						seletedobjected.GetComponent<SpriteRenderer>().sprite = bqueenname;
+						promotetooo = 0;
+					}
 				}
 				promotetooo = 0;
 				//loosing castling rights
@@ -1634,8 +1669,13 @@ public class PieceManager : MonoBehaviour {
 			//	print("stored enpassant is :" +storedenpassant[0] + ","+ storedenpassant[1]);
 				entrack = new int[] {0,0};
 				enpassant = new int[] {0,0,0};
+				
 			}
-			origionalrookLoc = Vector3.zero;
+			if((whitesTurn == true && _whitePlayerType == PlayerTypes.Human) || (whitesTurn == false && _blackPlayerType == PlayerTypes.Human))
+			{
+				origionalrookLoc = Vector3.zero;
+				seletedobjected = null;
+			}
 		}
 	}
 
@@ -2784,7 +2824,7 @@ public class PieceManager : MonoBehaviour {
 		}
 	}
 
-	public void Interpreter (int[,] prevcb, int[,] newcb)
+	public void Interpreter (int[,] prevcb, int[,] newcb, bool usepgn)
 	{
 		int[,]deltacb = new int[,] { /*A File*/ {0,0,0,0,0,0,0,0}, /*B File*/ {0,0,0,0,0,0,0,0}, /*C File*/ {0,0,0,0,0,0,0,0}, /*D File*/ {0,0,0,0,0,0,0,0}, /*E File*/ {0,0,0,0,0,0,0,0}, /*F File*/ {0,0,0,0,0,0,0,0}, /*G File*/ {0,0,0,0,0,0,0,0}, /*H File*/ {0,0,0,0,0,0,0,0}};
 		int col = 0;
@@ -2800,6 +2840,7 @@ public class PieceManager : MonoBehaviour {
 		int dy = -1;
 		int epx = -1;
 		int epy = -1;
+		lastpgnline = "";
 		foreach(int num in prevcb)
 		{
 			countertest++;	
@@ -2831,7 +2872,7 @@ public class PieceManager : MonoBehaviour {
 				}
 				else if (newcb[col,rank] == 99)
 				{
-
+					
 				}
 				else if (newcb[col,rank] == 98)
 				{
@@ -2883,22 +2924,89 @@ public class PieceManager : MonoBehaviour {
 			
 			
 		}
+		else if(storedcols.Count == 3 ||storedcols.Count == 4)
+		{
+			print("supposed to castle");
+		}
 		if(destcol != -1 && destrank != -1 && prevcb[destcol,destrank] != 6 & prevcb[destcol,destrank] != 12 && prevcb[destcol, destrank] != 0 && prevcb[destcol,destrank] != 99 && newcb[destcol,destrank] != 99 && newcb[destcol,destrank] != 98 && prevcb[destcol,destrank] != 98)
 		{
 			dx = destcol;
 			dy = destrank;
+			//print("capture!");
 		}
-		if(chessboardarray[destcol,destrank] == 6 || chessboardarray[destcol,destrank] == 12)
+		if(usepgn == false && destrank == 7 && prevcb[selcol,selrank] == 1)
+		{
+			//print("im in here for white");
+			mwqueen = true;
+		}
+		else if(usepgn == false && destrank == 0 && prevcb[selcol,selrank] == 7)
+		{
+			//print("im in here for black");
+			mbqueen = true;
+		}
+		else
+		{
+			if (usepgn == false)
+			{
+				mwqueen = false;
+				mbqueen = false;
+			}
+		}
+		if(usepgn == false && (prevcb[destcol,destrank] == 6 || prevcb[destcol,destrank] == 12))
 		{
 			print("Trying to capture king stop it, d is : "+ dx + ", " + dy + ", sel is: " + selcol + ", " + selrank);
 			Debug.Break();
 		}
-		ArtificialMove(selcol,selrank, destcol, destrank,dx, dy, epx, epy);
+		if(usepgn == false)
+		{
+			ArtificialMove(selcol,selrank, destcol, destrank,dx, dy, epx, epy);
+		}
+		else
+		{
+			if (prevcb[selcol, selrank] == 1 || prevcb[selcol, selrank] == 7)
+			{
+				movedpiece = "";
+			}
+			else if (prevcb[selcol, selrank] == 2 || prevcb[selcol, selrank] == 8)
+			{
+				movedpiece = "N";
+			}
+			else if (prevcb[selcol, selrank] == 3 || prevcb[selcol, selrank] == 9)
+			{
+				movedpiece = "B";
+			}
+			else if (prevcb[selcol, selrank] == 4 || prevcb[selcol, selrank] == 10)
+			{
+				movedpiece = "R";
+			}
+			else if (prevcb[selcol, selrank] == 5 || prevcb[selcol, selrank] == 11)
+			{
+				movedpiece = "Q";
+			}
+			else if (prevcb[selcol, selrank] == 6 || prevcb[selcol, selrank] == 12)
+			{
+				movedpiece = "K";
+			}
+			//if(whitesTurn == true && lastpgnline == "")
+			//{
+				//lastpgnline = lastpgnline + ((moveCount-1)/2 + 1) + ". ";
+			//}
+			lastpgnline = lastpgnline + movedpiece + (char)(destcol + 97) + (destrank + 1);
+			if(whitesTurn == true)
+			{
+				lastpgnline = lastpgnline + " ";
+			}
+			else if(whitesTurn == false)
+			{
+				lastpgnline = lastpgnline + "\n" + ((moveCount/2) + 1) + ". ";
+			}
+		}
 		
 	}
 
 	public void ArtificialMove (int x1, int y1, int x2, int y2,int dx, int dy, int epx, int epy)
 	{
+		seletedobjected = null;
 		GameObject tempgo;
 		float nx1 = ((x1*2)-7) * (1.12875f);
 		float nx2 = ((x2*2)-7) * (1.12875f);
@@ -2906,6 +3014,7 @@ public class PieceManager : MonoBehaviour {
 		float ny2 = ((y2*2)-7) * (1.12875f);
 		float ndx = ((dx*2)-7) * (1.12875f);
 		float ndy = ((dy*2)-7) * (1.12875f);
+	//	originalLoc = new Vector2 (((x1*2)-7) * (1.12875f), ((y1*2)-7) * (1.12875f));
 	//	print(nx1 + ",x1 is: "+ x1 + ", " + ny1 + ", " + ", y1 is: " + y1 + ", " + nx2 + ", x2 is: " + x2 + ", " + ny2);
 		Vector3 p = new Vector3 (nx2,ny2,-1);
 
@@ -2919,7 +3028,7 @@ public class PieceManager : MonoBehaviour {
 			}
 			else{
 				hitdel.transform.gameObject.SetActive(false);
-				print("Devated");
+				//print("Devated");
 				
 			}
 		}
@@ -2934,8 +3043,18 @@ public class PieceManager : MonoBehaviour {
 		tempgo = hit.transform.gameObject;
 		//print(tempgo.name);
 		tempgo.transform.position = p;
+		if(mwqueen == true && tempgo.GetComponent<SpriteRenderer>().sprite == wpawnname)
+		{
+			tempgo.GetComponent<SpriteRenderer>().sprite = wqueenname;
+			print("White Dest rank is: " + y2);
+		}
+		else if (mbqueen == true && tempgo.GetComponent<SpriteRenderer>().sprite == bpawnname)
+		{
+			tempgo.GetComponent<SpriteRenderer>().sprite = bqueenname;
+			print("Black Dest rank is: " + y2);
+		}
 		isLeegal = true;
-		seletedobjected = tempgo.transform;
+		//seletedobjected = tempgo.transform;
 		//if(destcol == 7 && seletedobjected.GetComponent<)
 		//seletedobjected = tempgo.transform;
 		if(epx != -1)
@@ -2957,8 +3076,9 @@ public class PieceManager : MonoBehaviour {
 			tempgo.SetActive(false);
 			//seletedobjected = tempgo.transform;
 		}
-
+		moveCount ++;
 		checkupcall = false;
+		seletedobjected = null;
 	}
 
 	public void SetWPlayerType(int nnum)
@@ -2979,4 +3099,32 @@ public class PieceManager : MonoBehaviour {
 		fcheckupcall = true;
     }
 
+	
+	void UpdatePGN (int[,] prevcb, int [,] newcb)
+	{
+		string path = Application.dataPath +"/PGNDATA/PGN.txt";
+		//Create File if it doesn't exist
+//		if (!File.Exists(path))
+//		{
+		if(moveCount == 1)
+		{
+			File.WriteAllText(path, "Login log \n" + System.DateTime.Now + "\n");
+		}
+//		}
+//		else
+//		{
+//
+//		//}
+		//Context of the file
+		Interpreter(prevcb,newcb,true);
+		//string content = "Login date: " + System.DateTime.Now + "\n";
+		string content = lastpgnline;
+		//Add some to text to it
+		if(moveCount == 1)
+		{
+			File.AppendAllText(path, "1.");
+		}
+		
+		File.AppendAllText(path, content);
+	}
 }
