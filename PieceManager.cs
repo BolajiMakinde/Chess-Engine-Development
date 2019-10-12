@@ -110,6 +110,128 @@ public class PieceManager : MonoBehaviour {
 	public bool _createPGN;
 	string movedpiece = "";
 	public string lastpgnline = "";
+	public Image wspriteicn;
+	public Image bspriteicn;
+	public Sprite[] wspriteicns;
+	public int wspriteindx;
+	public Sprite[] bspriteicns;
+	public int bspriteindx;
+//              ^
+	// Tree   //|\\
+	         ///|\\\
+			////|\\\\
+	//		   |||
+
+	public class TreeNodeBasic<T>
+	{
+		private T value;
+
+		private bool hasParent;
+
+		private List<TreeNodeBasic<T>> children;
+
+		public TreeNodeBasic(T value)
+		{
+			if (value == null)
+			{
+				throw new ArgumentNullException ("Cannot insert null value!");
+				//print("Cannot insert null value!");
+			}
+			this.value = value;
+			this.children = new List<TreeNodeBasic<T>>();
+		}
+
+		public T Value
+		{
+			get
+			{
+				return this.value;
+			}
+			set
+			{
+				this.value = value;
+			}
+		}
+
+		public int ChildrenCount
+		{
+			get
+			{
+				return this.children.Count;
+			}
+		}
+		public void AddChild(TreeNodeBasic<T> child)
+		{
+			if (child == null)
+			{
+				throw new ArgumentNullException ("Cannot insert null value!");
+				//print("Cannot insert nul value!");
+			}
+
+			if (child.hasParent)
+			{
+				throw new ArgumentException ("The node already has a parent");
+				//print ("The node already has a parent!");
+			}
+			child.hasParent = true;
+			this.children.Add(child);
+		}
+		public TreeNodeBasic<T> GetChild(int index)
+		{
+			return this.children[index];
+		}
+	}
+
+	public class TreeBasic<T>
+	{
+		private TreeNodeBasic<T> root;
+		public TreeBasic (T value)
+		{
+			if (value == null)
+			{
+				throw new ArgumentNullException("Cannot insert null value!");
+			}
+
+			this.root = new TreeNodeBasic<T>(value);
+		}
+
+		public TreeBasic(T value, params TreeBasic<T>[] children)
+			: this(value)
+		{
+			foreach (TreeBasic<T> child in children)
+			{
+				this.root.AddChild(child.root);
+			}
+		}
+
+		public TreeNodeBasic<T> Root
+		{
+			get
+			{
+				return this.root;
+			}
+		}
+
+		private void PrintDFS(TreeNodeBasic<T> root, string spaces)
+		{
+			if (this.root == null)
+			{
+				return;
+			}
+			Console.WriteLine(spaces + root.Value);
+			TreeNodeBasic<T> child = null;
+			for (int i = 0; i < root.ChildrenCount; i++)
+			{
+				child = root.GetChild(i);
+				PrintDFS(child, spaces + "  ");
+			}
+		}
+		public void TraverseDFS()
+		{
+			this.PrintDFS(this.root, string.Empty);
+		}
+	}
+
 	// Use this for initialization
 	void Start () {
 		int count = 0;
@@ -124,7 +246,7 @@ public class PieceManager : MonoBehaviour {
 	// Update is called once per frame
 
 	void Update () {
-
+		//GenerateMatrix();
 		if (legalMoves.Count == 0) {
 			GenerateMatrix();
 			if (blackkingincheck == true) {
@@ -149,6 +271,7 @@ public class PieceManager : MonoBehaviour {
 				OnMouseDrag ();
 			} else if (Input.GetMouseButtonUp (0)) {
 				OnMouseUp();
+				//GenerateBasicTree(3);
 			}
 			//moves the pieces
 			if (isDragging == true) {
@@ -164,7 +287,7 @@ public class PieceManager : MonoBehaviour {
 		{
 			if(checkupcall == false)
 			{
-				seletedobjected = null;
+				//seletedobjected = null;
 				if(whitesTurn == true && fcheckupcall == false && ffcheck == false)
 				{
 					StartCoroutine(DelayProcess(wprocessdelay));
@@ -175,6 +298,7 @@ public class PieceManager : MonoBehaviour {
 				}
 				if(fcheckupcall == true)
 				{
+					//GenerateBasicTree(1);
 					fcheckupcall = false;
 					checkupcall = true;
 					GenerateMatrix();
@@ -197,6 +321,13 @@ public class PieceManager : MonoBehaviour {
 			{
 				print("check in prevented");
 			}
+		}
+		else if((whitesTurn == true && _whitePlayerType == PlayerTypes.Greed) || (whitesTurn == false && _blackPlayerType == PlayerTypes.Greed))
+		{
+			GenerateBasicTree(2);
+
+			//////
+			whitesTurn = !whitesTurn;
 		}
 		//fcheckupcall = false;
 		if (printingarray == true) {
@@ -229,6 +360,23 @@ public class PieceManager : MonoBehaviour {
 			printalllegalmoves = false;
 		}
 		fcheckupcall = false;
+	}
+
+	public void GenerateBasicTree (int depth)
+	{
+		float tbinput;
+		TreeBasic<float> tb;
+		if((whitesTurn == true && _whitePlayerType == PlayerTypes.Greed) || (whitesTurn == false && _blackPlayerType == PlayerTypes.Greed))
+		{
+			//print("got ine");
+			tbinput = Engines[1].GetComponent<MatGreedEVALENGINE>().Calc(chessboardarray);
+			tb = new TreeBasic<float>(tbinput);
+			for(int i = 0; i < depth; i ++)
+			{
+				tb.TraverseDFS();
+				print("got ine");
+			}
+		}
 	}
 
 	public bool kinginchecks (int[] kingloc, int[,] kcheckarray)
@@ -3007,7 +3155,7 @@ public class PieceManager : MonoBehaviour {
 	public void ArtificialMove (int x1, int y1, int x2, int y2,int dx, int dy, int epx, int epy)
 	{
 		seletedobjected = null;
-		GameObject tempgo;
+		GameObject tempgo = null;
 		float nx1 = ((x1*2)-7) * (1.12875f);
 		float nx2 = ((x2*2)-7) * (1.12875f);
 		float ny1 = ((y1*2)-7) * (1.12875f);
@@ -3023,7 +3171,7 @@ public class PieceManager : MonoBehaviour {
 			RaycastHit2D hitdel = Physics2D.Raycast (new Vector2 (ndx,ndy), -Vector2.up);
 			if(hitdel == null || hitdel.transform == null)
 			{
-				print("raycast hit nothing dx" + "dx = " + dx + ", dy = " + dy);
+				print("[very weird] raycast hit nothing dx" + "dx = " + dx + ", dy = " + dy);
 				Debug.Break();
 			}
 			else{
@@ -3034,15 +3182,22 @@ public class PieceManager : MonoBehaviour {
 		}
 	//	RaycastHit2D hit;
 	//	Ray ray = Camera.main.ScreenPointToRay(new Vector2 (nx1,ny1));
-		RaycastHit2D hit = Physics2D.Raycast (new Vector2 (nx1,ny1), -Vector2.up) ;
-		if(hit == null || hit.transform == null)
+		if(x1 != -1 && y1 != -1)
 		{
-			print("raycast hit nothing temp");
-			Debug.Break();
+			RaycastHit2D hit = Physics2D.Raycast (new Vector2 (nx1,ny1), -Vector2.up) ;
+			if(hit == null || hit.transform == null)
+			{
+				print("raycast hit nothing temp nx1: " + x1 + "ny1: " + x1);
+				Debug.Break();
+			}
+			tempgo = hit.transform.gameObject;
+			//print(tempgo.name);
+			tempgo.transform.position = p;
 		}
-		tempgo = hit.transform.gameObject;
-		//print(tempgo.name);
-		tempgo.transform.position = p;
+		else
+		{
+			print("[CRITICAL] NX1 OR NY1 IS -");
+		}
 		if(mwqueen == true && tempgo.GetComponent<SpriteRenderer>().sprite == wpawnname)
 		{
 			tempgo.GetComponent<SpriteRenderer>().sprite = wqueenname;
@@ -3078,16 +3233,23 @@ public class PieceManager : MonoBehaviour {
 		}
 		moveCount ++;
 		checkupcall = false;
-		seletedobjected = null;
+		//seletedobjected = null;
+	}
+
+	public void _usePGN_()
+	{
+		_createPGN = !_createPGN;
 	}
 
 	public void SetWPlayerType(int nnum)
 	{
 		_whitePlayerType = (PlayerTypes)nnum;
+		wspriteicn.sprite = wspriteicns[nnum];
 	}
 	public void SetBPlayerType(int nnum)
 	{
 		_blackPlayerType = (PlayerTypes)nnum;
+		bspriteicn.sprite = bspriteicns[nnum];
 	}
 
 	 IEnumerator DelayProcess(float delay)
