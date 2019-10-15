@@ -33,13 +33,15 @@ public class PieceManager : MonoBehaviour {
 	{
 		Human = 0,
 		Random = 1,
-		Greed = 2
+		Greed = 2,
+		Neural = 3
 	}
 	public GameObject[] Engines;
 	public PlayerTypes _blackPlayerType;
 	public PlayerTypes _whitePlayerType;
 	public int[,] chessboardarray = new int [,] { /*A File*/ {4,1,0,0,0,0,7,10}, /*B File*/ {2,1,0,0,0,0,7,8}, /*C File*/ {3,1,0,0,0,0,7,9}, /*D File*/ {5,1,0,0,0,0,7,11}, /*E File*/ {6,1,0,0,0,0,7,12}, /*F File*/ {3,1,0,0,0,0,7,9}, /*G File*/ {2,1,0,0,0,0,7,8}, /*H File*/ {4,1,0,0,0,0,7,10}};
 	public int[,] originalChessBoardArray = new int [,] { /*A File*/ {4,1,0,0,0,0,7,10}, /*B File*/ {2,1,0,0,0,0,7,8}, /*C File*/ {3,1,0,0,0,0,7,9}, /*D File*/ {5,1,0,0,0,0,7,11}, /*E File*/ {6,1,0,0,0,0,7,12}, /*F File*/ {3,1,0,0,0,0,7,9}, /*G File*/ {2,1,0,0,0,0,7,8}, /*H File*/ {4,1,0,0,0,0,7,10}};
+	public List<Vector3> originalChessBoardPosition = new List<Vector3>();
 	public int[,] checkChessBoardArray = new int[,] { /*A File*/ {0,1,1,0,0,2,2,0}, /*B File*/ {1,1,1,0,0,2,2,2}, /*C File*/ {1,1,1,0,0,2,2,2}, /*D File*/ {1,1,1,0,0,2,2,2}, /*E File*/ {1,1,1,0,0,2,2,2}, /*F File*/ {1,1,1,0,0,2,2,2}, /*G File*/ {1,1,1,0,0,2,2,2}, /*H File*/ {0,1,1,0,0,2,2,0}};
 	public List<int[,]> legalMoves = new List<int[,]>();
 	public GameObject[] chesspieces;
@@ -107,6 +109,8 @@ public class PieceManager : MonoBehaviour {
 	public bool mwqueen = false;
 	public bool mbqueen = false;
 	public int moveCount = 0;
+	public int capturemoveCount = 0;
+	public bool move50rule = true;
 	public bool _createPGN;
 	string movedpiece = "";
 	public string lastpgnline = "";
@@ -116,6 +120,11 @@ public class PieceManager : MonoBehaviour {
 	public int wspriteindx;
 	public Sprite[] bspriteicns;
 	public int bspriteindx;
+	public List<GameObject> wconvertedpawns;
+	public List<GameObject> bconvertedpawns;
+	public bool RinseandRepeat = false;
+	public int[,]bp4test = new int[,] { /*A File*/ {0,0,0,0,0,0,0,0}, /*B File*/ {0,0,0,0,0,0,0,0}, /*C File*/ {0,0,0,0,0,0,0,0}, /*D File*/ {0,0,0,0,0,0,0,0}, /*E File*/ {0,0,0,0,0,0,0,0}, /*F File*/ {0,0,0,0,0,0,0,0}, /*G File*/ {0,0,0,0,0,0,0,0}, /*H File*/ {0,0,0,0,0,0,0,0}};
+
 //              ^
 	// Tree   //|\\
 	         ///|\\\
@@ -238,9 +247,10 @@ public class PieceManager : MonoBehaviour {
 		foreach (GameObject chesspiece in chesspieces) {
 			chesspiecenames[count] = chesspiece.name;
 			count = count + 1;
-				
+			originalChessBoardPosition.Add(chesspiece.transform.position);
 		}
-		isLegal (chessboardarray);
+		GenerateMatrix();
+		//isLegal (chessboardarray);
 	}
 	
 	// Update is called once per frame
@@ -248,29 +258,69 @@ public class PieceManager : MonoBehaviour {
 	void Update () {
 		//GenerateMatrix();
 		if (legalMoves.Count == 0) {
-			GenerateMatrix();
+			//GenerateMatrix();
 			if (blackkingincheck == true) {
 				print ("1-0: Checkmate. White is Victorius");
-				Debug.Break();
+				if(RinseandRepeat == true)
+				{
+					ResetBoard();
+					whitesTurn = true;
+				}
+				else
+				{
+					Debug.Break();
+				}
 			}
 			else if (whitekingincheck == true) {
 				print ("0-1: Checkmate. Black is Victorius");
-				Debug.Break();
+				if(RinseandRepeat == true)
+				{
+					ResetBoard();
+					whitesTurn = true;
+				}
+				else
+				{
+					Debug.Break();
+				}
 			}
 			else
 			{
 				print ("1/2-1/2: Stalemate");
+				if(RinseandRepeat == true)
+				{
+					ResetBoard();
+					whitesTurn = true;
+				}
+				else
+				{
+					Debug.Break();
+				}
+			}
+		}
+		if (capturemoveCount >= 100 && move50rule == true)
+		{
+			print ("50 non capture moves");
+			if(RinseandRepeat == true)
+			{
+				ResetBoard();
+				capturemoveCount = 0;
+				whitesTurn = true;
+			}
+			else
+			{
 				Debug.Break();
 			}
 		}
 		if((whitesTurn == true && _whitePlayerType == PlayerTypes.Human) || (whitesTurn == false && _blackPlayerType == PlayerTypes.Human))
 		{
+			//GenerateMatrix();
 			if (Input.GetMouseButtonDown (0)) {
 				OnMouseDown();
 			} else if (Input.GetMouseButton (0)) {
 				OnMouseDrag ();
 			} else if (Input.GetMouseButtonUp (0)) {
 				OnMouseUp();
+				GenerateMatrix();
 				//GenerateBasicTree(3);
 			}
 			//moves the pieces
@@ -301,8 +351,24 @@ public class PieceManager : MonoBehaviour {
 					//GenerateBasicTree(1);
 					fcheckupcall = false;
 					checkupcall = true;
-					GenerateMatrix();
+					//GenerateMatrix();
+					//isLegal(chessboardarray);
 					int[,] feedcb = Engines[0].GetComponent<RandomENGINE>().Calc(chessboardarray);
+					//GenerateMatrix();
+					if(legalMoves.Count == 0)
+					{
+						if(RinseandRepeat == true)
+						{
+							ResetBoard();
+							capturemoveCount = 0;
+							whitesTurn = true;
+							return;
+						}
+						else
+						{
+							Debug.Break();
+						}
+					}
 					Interpreter(chessboardarray, feedcb, false);
 					if(_createPGN == true)
 					{
@@ -310,7 +376,7 @@ public class PieceManager : MonoBehaviour {
 					}
 					chessboardarray = feedcb;
 					whitesTurn = !whitesTurn;
-					GenerateMatrix();
+					//GenerateMatrix();
 					ffcheck = false;
 					//isLegal(feedcb);
 				}
@@ -350,6 +416,7 @@ public class PieceManager : MonoBehaviour {
 		if (generateLegalMoves == true)
 		{
 			GenerateMatrix();
+			generateLegalMoves = false;
 		}
 		if(printalllegalmoves == true)
 		{
@@ -374,7 +441,7 @@ public class PieceManager : MonoBehaviour {
 			for(int i = 0; i < depth; i ++)
 			{
 				tb.TraverseDFS();
-				print("got ine");
+				//print("got ine");
 			}
 		}
 	}
@@ -563,7 +630,8 @@ public class PieceManager : MonoBehaviour {
 				//gametocodearray[x1,y1] = k;
 				if(x1 == wanttocapture[0] && y1 == wanttocapture[1] && x1 != -1 && y1 != -1 && ((whitesTurn == true && _whitePlayerType == PlayerTypes.Human) || (whitesTurn == false && _blackPlayerType == PlayerTypes.Human)))
 				{
-					print("im not supposed to be here, [0] is " + wanttocapture[0] + ", x1 is: "+ x1+ "[1] is "+ wanttocapture[1]+ ", y1 is "+ y1);
+					//print("im not supposed to be here, [0] is " + wanttocapture[0] + ", x1 is: "+ x1+ "[1] is "+ wanttocapture[1]+ ", y1 is "+ y1);
+					//print("want to capture 3 is: " + wanttocapture[3])
 					if((wanttocapture[3] !=1 || y1 !=7) && (y1!=0 || wanttocapture[3] !=7))
 					{
 						generatedarray[x1,y1] = wanttocapture[3];
@@ -1599,21 +1667,23 @@ public class PieceManager : MonoBehaviour {
 		{
 			generatedarray [storedenpassant[0],storedenpassant[1]+1] = 0;
 			chesspieces[gametocodearray[storedenpassant[0],storedenpassant[1]+1]-32].SetActive(false);
+			capturemoveCount = 0;
 		}
 		else if (storedenpassant[2] == 1 && (storedenpassant[0]!= 0 || storedenpassant[1] != 0) && generatedarray[storedenpassant[0],storedenpassant[1]] == 1)
 		{
 			generatedarray [storedenpassant[0],storedenpassant[1]-1] = 0;
 			chesspieces[gametocodearray[storedenpassant[0],storedenpassant[1]-1]-32].SetActive(false);
+			capturemoveCount = 0;
 		}
 		isLegal(chessboardarray);
-		if((whitesTurn == true && _whitePlayerType != PlayerTypes.Random)|| (whitesTurn == false && _blackPlayerType != PlayerTypes.Random))
-		{
+		//if((whitesTurn == true && _whitePlayerType != PlayerTypes.Random)|| (whitesTurn == false && _blackPlayerType != PlayerTypes.Random))
+		//{
 			isLeegal = false;
-		}
-		else
-		{
-			isLeegal = true;
-		}
+		//}
+		//else
+		//{
+		//	isLeegal = true;
+		//}
 		foreach (int[,] move in legalMoves)
 		{
 			string combinedmove = "";
@@ -1642,9 +1712,12 @@ public class PieceManager : MonoBehaviour {
 //		}
 
 
-		if((seletedobjected != null && (isLeegal == false || (whitekingincheck== true && whitesTurn == true))) && ((whitesTurn == true && _whitePlayerType == PlayerTypes.Human) || (whitesTurn == false && _blackPlayerType == PlayerTypes.Human)))
+		if(((isLeegal == false || (whitekingincheck== true && whitesTurn == true))) && ((whitesTurn == true && _whitePlayerType == PlayerTypes.Human) || (whitesTurn == false && _blackPlayerType == PlayerTypes.Human)))
 		{
-			seletedobjected.transform.position = originalLoc;
+			if(seletedobjected != null)
+			{
+				seletedobjected.transform.position = originalLoc;
+			}
 			if(printlegality){
 				print("Not Legal!");
 				if(printgeneratedmovedecision)
@@ -1698,8 +1771,13 @@ public class PieceManager : MonoBehaviour {
 				if(wanttocapture[2]> -1)
 				{
 					chesspieces[wanttocapture[2]].SetActive(false);
+					capturemoveCount = 0;
 					chesspieces[wanttocapture[2]].transform.Translate(40,40,40);
 					print(wanttocapture[2]);
+				}
+				else
+				{
+					//print("stuck in THIS iF elSE");
 				}
 				wanttocapture = new int[] {-1,-1,-1,-1,-1};
 				if(_createPGN == true)
@@ -1715,8 +1793,10 @@ public class PieceManager : MonoBehaviour {
 				if(printlegality){
 					print("Legal!");
 					
+					
 			//		printArray(generatedarray);
 				}
+				capturemoveCount++;
 				if(checkChessBoardArray[kingpostemp[2],kingpostemp[3]] == 1 || checkChessBoardArray[kingpostemp[2],kingpostemp[3]] == 3)
 				{
 					blackkingincheck = true;
@@ -1745,21 +1825,25 @@ public class PieceManager : MonoBehaviour {
 					if(promotetooo == 2 && _whitePlayerType == PlayerTypes.Human)
 					{
 						seletedobjected.GetComponent<SpriteRenderer>().sprite = wknightname;
+						wconvertedpawns.Add(seletedobjected.gameObject);
 						promotetooo = 0;
 					}
 					else if(promotetooo == 3 && _whitePlayerType == PlayerTypes.Human)
 					{
 						seletedobjected.GetComponent<SpriteRenderer>().sprite = wbishopname;
+						wconvertedpawns.Add(seletedobjected.gameObject);
 						promotetooo = 0;
 					}
 					else if(promotetooo == 4 && _whitePlayerType == PlayerTypes.Human)
 					{
 						seletedobjected.GetComponent<SpriteRenderer>().sprite = wrookname;
+						wconvertedpawns.Add(seletedobjected.gameObject);
 						promotetooo = 0;
 					}
 					else if(promotetooo == 5 && _whitePlayerType == PlayerTypes.Human)
 					{
 						seletedobjected.GetComponent<SpriteRenderer>().sprite = wqueenname;
+						wconvertedpawns.Add(seletedobjected.gameObject);
 						promotetooo = 0;
 					}
 				}
@@ -1768,21 +1852,25 @@ public class PieceManager : MonoBehaviour {
 					if(promotetooo == 8 && _blackPlayerType == PlayerTypes.Human)
 					{
 						seletedobjected.GetComponent<SpriteRenderer>().sprite = bknightname;
+						bconvertedpawns.Add(seletedobjected.gameObject);
 						promotetooo = 0;
 					}
 					else if(promotetooo == 9 && _blackPlayerType == PlayerTypes.Human)
 					{
 						seletedobjected.GetComponent<SpriteRenderer>().sprite = bbishopname;
+						bconvertedpawns.Add(seletedobjected.gameObject);
 						promotetooo = 0;
 					}
 					else if(promotetooo == 10 && _blackPlayerType == PlayerTypes.Human)
 					{
 						seletedobjected.GetComponent<SpriteRenderer>().sprite = brookname;
+						bconvertedpawns.Add(seletedobjected.gameObject);
 						promotetooo = 0;
 					}
 					else if(promotetooo == 11 && _blackPlayerType == PlayerTypes.Human)
 					{
 						seletedobjected.GetComponent<SpriteRenderer>().sprite = bqueenname;
+						bconvertedpawns.Add(seletedobjected.gameObject);
 						promotetooo = 0;
 					}
 				}
@@ -1899,7 +1987,10 @@ public class PieceManager : MonoBehaviour {
 						promotetooo = wpromotepref;
 						editedarray [col, rank + 1] = promotetooo;
 					}
-					if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(whitekingpos,editedarray) == false)
+					{
+						legalMoves.Add(editedarray); 
+					}
 
                 }
 
@@ -1910,15 +2001,17 @@ public class PieceManager : MonoBehaviour {
                     editedarray[col, rank] = 0;
                     editedarray[col, rank + 2] = 1;
 					editedarray[col,rank+1] = 99;
-					if (kinginchecks (whitekingpos, editedarray) == false) {
+					if (kinginchecks (whitekingpos, editedarray) == false){
 						legalMoves.Add (editedarray);
-						if(col == 3)
-						{
-						//	printArray (editedarray);
-						}
-					} else {
-					//	print ("failed tests");
 					}
+					//	if(col == 3)
+					//	{
+						//	printArray (editedarray);
+					//	}
+					//}
+					//else {
+					//	print ("failed tests");
+					//}
                 }
 				// capture
 				if (col+1<=7 && rank+1<=7 && testmatrix[col+1, rank + 1] > 6) {
@@ -1950,17 +2043,21 @@ public class PieceManager : MonoBehaviour {
 					editedarray[col, rank] = 0;
 					editedarray [col+1, rank + 1] = 1;
 					editedarray [col + 1, rank] = 0;
-					if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(whitekingpos,editedarray) == false) {
+						legalMoves.Add(editedarray);
+					}
 				}
 				if (col-1>=0 && col-1 == storedenpassant[0] && rank + 1 == storedenpassant[1] && storedenpassant[2] == 1) {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col-1, rank + 1] = 1;
 					editedarray [col-1, rank] = 0;
-					if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(whitekingpos,editedarray) == false) {
+						legalMoves.Add(editedarray);
+					}
 				}
-            }
-            //Black Pawn Legal Moves
+			}
+			//Black Pawn Legal Moves
             else if (num == 7 && whitesTurn == false) {
 				editedarray = testmatrix;
                 if (rank - 1 >= 0 && testmatrix[col, rank - 1] == 0) {
@@ -1973,7 +2070,9 @@ public class PieceManager : MonoBehaviour {
 						promotetooo = bpromotepref;
 						editedarray [col, rank - 1] = promotetooo;
 					}
-                    if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+                    if(kinginchecks(blackkingpos,editedarray) == false) {
+						legalMoves.Add(editedarray);
+					}
                 }
                 editedarray = testmatrix;
                 if (rank == 6 && rank - 2 >= 0 && testmatrix[col, rank - 2] == 0 && testmatrix[col, rank - 1] == 0) {
@@ -2393,7 +2492,7 @@ public class PieceManager : MonoBehaviour {
 			else if (num == 11 && whitesTurn == false) {
 				//diagonal moves
 				endder = false;
-				for (int i = 1;col + i <= 7 && rank + i <= 7 && testmatrix [col + i, rank + i] == 0 && (i == 1 || testmatrix [col + i - 1, rank + i - 1] == 0); i++) {
+				for (int i = 1;col + i <= 7 && rank + i <= 7 && testmatrix [col + i, rank + i] < 6 && (i == 1 || testmatrix [col + i - 1, rank + i - 1] == 0); i++) {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col + i, rank + i] = 11;
@@ -2403,7 +2502,7 @@ public class PieceManager : MonoBehaviour {
 					}
 				}
 				endder = false;
-				for (int i = 1;col - i >= 0 && rank + i <= 7 && testmatrix[col - i, rank + i] == 0 && (i == 1 || testmatrix [col - i + 1, rank + i - 1] == 0); i++) {
+				for (int i = 1;col - i >= 0 && rank + i <= 7 && testmatrix[col - i, rank + i] < 6 && (i == 1 || testmatrix [col - i + 1, rank + i - 1] == 0); i++) {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col - i, rank + i] = 11;
@@ -2551,8 +2650,9 @@ public class PieceManager : MonoBehaviour {
 					editedarray [5, 0] = 4;
 					editedarray [6, 0] = 6;
 					editedarray [7, 0] = 0;
+					int[] nkp = {6,0};
 					//print ("can castle king side");
-					legalMoves.Add (editedarray);
+					if(kinginchecks(nkp,editedarray) == false) { legalMoves.Add (editedarray);}
 					
 				//	print ("indieodak:");
 				//	printArray (editedarray);
@@ -2572,8 +2672,9 @@ public class PieceManager : MonoBehaviour {
 					editedarray [2, 0] = 6;
 					editedarray [1, 0] = 0;
 					editedarray [0, 0] = 0;
+					int[] nkp = {2,0};
 				//	print ("can castle queen side");
-					legalMoves.Add(editedarray);
+					if(kinginchecks(nkp,editedarray) == false) { legalMoves.Add(editedarray); }
 				//	printArray (editedarray);
 				}
             }
@@ -2655,7 +2756,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray [5, 7] = 10;
 					editedarray [6, 7] = 12;
 					editedarray [7, 7] = 0;
-					legalMoves.Add(editedarray);
+					int[] nkp = {6,7};
+					if(kinginchecks(nkp,editedarray) == false) { legalMoves.Add(editedarray); }
 			//		printArray (editedarray);
 				}
 				if (blackkingmoved == false && movedbqueenrook == false && testmatrix [3, 7] == 0 && checkChessBoardArray [3,7] != 1 && checkChessBoardArray [3,7] != 3 && checkChessBoardArray [2,7] != 1 && checkChessBoardArray [2,7] != 3 && testmatrix [2, 7] == 0 && testmatrix[1,7] == 0 && testmatrix [0, 7] == 10) {
@@ -2673,7 +2775,10 @@ public class PieceManager : MonoBehaviour {
 					editedarray [2, 7] = 12;
 					editedarray [1, 7] = 0;
 					editedarray [0, 7] = 0;
-					legalMoves.Add(editedarray);
+					int[] nkp = {2,7};
+					if(kinginchecks(nkp,editedarray) == false) {
+						legalMoves.Add(editedarray);
+					}
 				//	printArray (editedarray);
 				}
 			}
@@ -2687,6 +2792,7 @@ public class PieceManager : MonoBehaviour {
 
                 //Runs on FIRST frame of mouse click.
 	void OnMouseDown () {
+		//wanttocapture = new int[] {-1,-1,-1,-1,-1};
 		if((whitesTurn == true && _whitePlayerType == PlayerTypes.Human) || (whitesTurn == false && _blackPlayerType == PlayerTypes.Human))
 		{
 			seletedobjected = null;
@@ -2922,7 +3028,7 @@ public class PieceManager : MonoBehaviour {
 				// capture
 				else if (chessboardarray[(int)(((x - 1) / 2))+4, (int)(((y - 1) / 2)+4)] !=0)
 				{
-					wanttocapture = new int[] {(int)(((x - 1) / 2)+4), (int)(((y - 1) / 2)+4),gametocodearray[(int)(((x - 1) / 2)+4), (int)(((y - 1) / 2)+4)]-32,chessboardarray[originalLoccoord[0],originalLoccoord[1]],gametocodearray[originalLoccoord[0],originalLoccoord[1]]}; //xcoord,ycoord,goal take id, selection piece type, selection piece id
+					wanttocapture = new int[] {/*x dest coord*/(int)(((x - 1) / 2)+4),/*indx 1: y dest coord*/ (int)(((y - 1) / 2)+4),/*indx 2: id*/gametocodearray[(int)(((x - 1) / 2)+4), (int)(((y - 1) / 2)+4)]-32,/* indx 3: sel piece type 1-12*/chessboardarray[originalLoccoord[0],originalLoccoord[1]],/* indx 4: sel ID*/gametocodearray[originalLoccoord[0],originalLoccoord[1]]}; //xcoord,ycoord,goal take id, selection piece type, selection piece id
 				//	print(gametocodearray[originalLoccoord[0],originalLoccoord[0]]-32);
 					if (entrack [0] != (int)(((x - 1) / 2) + 4) || entrack [1] != (int)(((y - 1) / 2) + 4)) {
 						enpassant = new int[]{ 0, 0, 0 };
@@ -2950,23 +3056,23 @@ public class PieceManager : MonoBehaviour {
 				seletedobjected.position = p;
 
 				GenerateMatrix ();
-				if(checkChessBoardArray[whitekingpos[0],whitekingpos[1]] == 2 || checkChessBoardArray[whitekingpos[0],whitekingpos[1]] == 3)
-				{
+				//if(checkChessBoardArray[whitekingpos[0],whitekingpos[1]] == 2 || checkChessBoardArray[whitekingpos[0],whitekingpos[1]] == 3)
+				//{
 				//	whitekingincheck = true;
-				}
-				else
-				{
+				//}
+				//else
+				//{
 				//	whitekingincheck = false;
-				}
-				if(checkChessBoardArray[blackkingpos[0],blackkingpos[1]] == 1 || checkChessBoardArray[blackkingpos[0],blackkingpos[1]] == 3)
-				{
+				//}
+				//if(checkChessBoardArray[blackkingpos[0],blackkingpos[1]] == 1 || checkChessBoardArray[blackkingpos[0],blackkingpos[1]] == 3)
+				//{
 				//	blackkingincheck = true;
 
-				}
-				else
-				{
+				//}
+				//else
+				//{
 			//		blackkingincheck = false;
-				}
+				//}
 			}
 			isLegal (chessboardarray);
 		}
@@ -2981,20 +3087,62 @@ public class PieceManager : MonoBehaviour {
 		List<int> storedranks = new List<int> {};
 		int selcol = -1;
 		int selrank = -1;
+		int sel1col = -1;
+		int sel1rank = -1;
 		int destcol = -1;
 		int destrank = -1;
+		int dest1col = -1;
+		int dest1rank = -1;
 		int countertest = 0;
 		int dx = -1;
 		int dy = -1;
 		int epx = -1;
 		int epy = -1;
 		lastpgnline = "";
+		wanttocapture[0] = -1;
+		wanttocapture[1] = -1;
+		wanttocapture[2] = -1;
+		wanttocapture[3] = -1;
+		wanttocapture[4] = -1;
+		//GenerateMatrix();
+		
 		foreach(int num in prevcb)
 		{
-			countertest++;	
+			countertest++;
 			if ((int)prevcb[col,rank] != (int)newcb[col,rank])
 			{
-				if(prevcb[col,rank] == 99)
+				if(newcb[col,rank] != 0 && newcb[col,rank]!= 99 && newcb[col,rank]!=98)
+				{
+					if(destcol == -1)
+					{
+						destcol = col;
+						destrank = rank;
+					}
+					else
+					{
+						dest1col = col;
+						dest1rank = rank;
+					}
+				}
+				else if(newcb[col,rank] == 0)
+				{
+					if(prevcb[col,rank] == 99 || newcb[col,rank] == 98)
+					{
+
+					}
+					else if(selcol != -1)// && (selcol != storedcols[1]|| selrank != storedranks[1]))
+					{
+						sel1col = col;
+						sel1rank = rank;
+					}
+					else
+					{
+						selcol = col;
+						selrank = rank;
+					}
+			//		print("intuit");
+				}
+				else if(prevcb[col,rank] == 99)
 				{
 					if(newcb[col, rank] == 7)
 					{
@@ -3020,17 +3168,11 @@ public class PieceManager : MonoBehaviour {
 				}
 				else if (newcb[col,rank] == 99)
 				{
-					
+					//print("white moved two");
 				}
 				else if (newcb[col,rank] == 98)
 				{
-					
-				}
-				else if(newcb[col,rank] == 0)
-				{
-					selcol = col;
-					selrank = rank;
-			//		print("intuit");
+					//print("black tried to enpassant");
 				}
 				else
 				{
@@ -3039,9 +3181,8 @@ public class PieceManager : MonoBehaviour {
 					storedranks.Add(rank);
 			//		print("destination is: " + col + ", " + rank);
 				}
-				//print("here");
-				//System.print();
 			}
+				
 			else
 			{
 				
@@ -3059,6 +3200,39 @@ public class PieceManager : MonoBehaviour {
 				}
 			}
 		}
+		if(selcol == -1)
+		{
+			print("NEW GAME!");
+			checkupcall = false;
+			fcheckupcall = false;
+			return;
+			
+		}
+		//stop castling wrights
+		if(whitekingmoved == false && (prevcb[selcol,selrank] == 6 || (sel1col != -1 && sel1rank !=-1 && prevcb[sel1col,sel1rank] == 6)))
+		{
+			whitekingmoved = true;
+		}
+		if(blackkingmoved == false && (prevcb[selcol,selrank] == 12 || (sel1col != -1 && prevcb[sel1col,sel1rank] == 12)))
+		{
+			blackkingmoved = true;
+		}
+		if(movedwikingrook == false && (prevcb[selcol,selrank] == 4 || (sel1col != -1 && prevcb[sel1col,sel1rank] == 4)) && (selcol == 7 || (sel1col != -1 && sel1col == 7)))
+		{
+			movedwikingrook = true;
+		}
+		if(movedbkingrook == false && (prevcb[selcol,selrank] == 10 || (sel1col != -1 && prevcb[sel1col,sel1rank] == 10)) && (selcol == 7 || (sel1col != -1 && sel1col == 7)))
+		{
+			movedbkingrook = true;
+		}
+		if(movedwqueenrook == false && (prevcb[selcol,selrank] == 4 || (sel1col != -1 && prevcb[sel1col,sel1rank] == 4)) && (selcol == 0 || (sel1col != -1 && sel1col == 0)))
+		{
+			movedwqueenrook = true;
+		}
+		if(movedbqueenrook == false && (prevcb[selcol,selrank] == 10 || (sel1col != -1 && prevcb[sel1col,sel1rank] == 10)) && (selcol == 0 || (sel1col != -1 && sel1col == 0)))
+		{
+			movedbqueenrook = true;
+		}
 		//print("countertest is: " + countertest);
 		//printArray(prevcb);
 		//print("____________________________");
@@ -3067,20 +3241,73 @@ public class PieceManager : MonoBehaviour {
 		if(storedcols.Count == 1 || storedcols.Count == 2)
 		{
 			
-			destcol = storedcols[0];
-			destrank = storedranks[0];
-			
-			
+			//destcol = storedcols[0];
+			//destrank = storedranks[0];
+			if(storedcols.Count == 2 && (destcol != storedcols[1]|| destrank != storedranks[1]))
+			{
+				//dest1col = col;
+				//dest1rank = rank;
+			}
+			else
+			{
+				//destcol = storedcols[0];
+				//destrank = storedranks[0];
+			}
+			if(selcol == -1 || selrank == -1)
+			{
+				print("sel fault");
+			}
+			if(destcol == -1 || destrank == -1)
+			{
+				print ("dest fault");
+			}
+			if(prevcb[selcol,selrank] == newcb[destcol,destrank])
+			{
+				print("All Goode!");
+			}
+			else
+			{
+				print("all bad");
+				Debug.Break();
+			}
 		}
 		else if(storedcols.Count == 3 ||storedcols.Count == 4)
 		{
 			print("supposed to castle");
+			//destcol = storedcols[0];
+			//destrank = storedranks[0];
 		}
-		if(destcol != -1 && destrank != -1 && prevcb[destcol,destrank] != 6 & prevcb[destcol,destrank] != 12 && prevcb[destcol, destrank] != 0 && prevcb[destcol,destrank] != 99 && newcb[destcol,destrank] != 99 && newcb[destcol,destrank] != 98 && prevcb[destcol,destrank] != 98)
+		else
 		{
-			dx = destcol;
-			dy = destrank;
+			//destcol = storedcols[0];
+			//destrank = storedranks[0];
+		}
+		if(destcol != -1 && destrank != -1 && prevcb[destcol,destrank] != 6 & prevcb[destcol,destrank] != 12 && prevcb[destcol, destrank] != 0 && newcb[destcol,destrank] != 99 && newcb[destcol,destrank] != 98)
+		{
+			if((prevcb[destcol,destrank] != 99 || newcb[destcol,destrank] != 7) && (prevcb[destcol,destrank] != 98 || newcb[destcol,destrank] != 1)) {
+				dx = destcol;
+				dy = destrank;
+			}
+			else
+			{
+				print("enpassant");
+				dx = destcol;
+				dy = destrank + 1;
+				if(usepgn == false)
+				{
+					gametocodearray[dx,dy] = 0;
+				}
+
+			}
 			//print("capture!");
+		}
+		if(prevcb[selcol,selrank] == 6)
+		{
+			whitekingpos = new int[] {destcol, destrank};
+		}
+		if(prevcb[selcol,selrank] == 12)
+		{
+			blackkingpos = new int[] {destcol,destrank};
 		}
 		if(usepgn == false && destrank == 7 && prevcb[selcol,selrank] == 1)
 		{
@@ -3100,20 +3327,67 @@ public class PieceManager : MonoBehaviour {
 				mbqueen = false;
 			}
 		}
-		if(usepgn == false && (prevcb[destcol,destrank] == 6 || prevcb[destcol,destrank] == 12))
+		if(destcol != -1 && destrank != -1 && usepgn == false && (prevcb[destcol,destrank] == 6 || prevcb[destcol,destrank] == 12))
 		{
 			print("Trying to capture king stop it, d is : "+ dx + ", " + dy + ", sel is: " + selcol + ", " + selrank);
+			printArray(deltacb);
 			Debug.Break();
 		}
-		if(usepgn == false)
+		bp4test = deltacb;
+		if(destcol == -1 || destrank == -1)
 		{
-			ArtificialMove(selcol,selrank, destcol, destrank,dx, dy, epx, epy);
+			print("Something is wrong. wrong destination");
+			//Debug.Break();
 		}
-		else
+		if(destcol == -1 && storedcols[0] != -1)
+		{
+			destcol = storedcols[0];
+		}
+		if(destrank == -1 && storedranks[0] != -1)
+		{
+			destrank = storedranks[0];
+		}
+		if(usepgn == false && destrank !=-1 && destcol != -1)
+		{
+			if(sel1col!= -1 && newcb[destcol,destrank] != prevcb[selcol,selrank] && destcol != dest1col)
+				{
+					int temp = 0;
+					
+					temp = dest1col;
+					dest1col = destcol;
+					destcol = temp;
+					////////////////////////
+					//temp = dest1rank;
+					//dest1rank = destrank;
+					//destrank = temp;
+				}
+			
+			ArtificialMove(selcol,selrank, destcol, destrank,dx, dy, epx, epy);
+			gametocodearray[destcol,destrank] = gametocodearray[selcol,selrank];
+			gametocodearray[selcol,selrank] = 0;
+			if(sel1col != -1)
+			{
+				
+				ArtificialMove(sel1col,sel1rank, dest1col, dest1rank, -1, -1, -1, -1);
+				gametocodearray[dest1col,dest1rank] = gametocodearray[sel1col,sel1rank];
+				gametocodearray[sel1col,sel1rank] = 0;
+				//print("calledcastling");
+				//Debug.Break();
+				
+			}
+		}
+		else if(selcol != -1 && selrank !=-1)
 		{
 			if (prevcb[selcol, selrank] == 1 || prevcb[selcol, selrank] == 7)
 			{
-				movedpiece = "";
+				if(selcol == destcol)
+				{
+					movedpiece = "";
+				}
+				else
+				{
+					movedpiece = ((char)(97+selcol)).ToString() + "x";
+				}
 			}
 			else if (prevcb[selcol, selrank] == 2 || prevcb[selcol, selrank] == 8)
 			{
@@ -3139,7 +3413,25 @@ public class PieceManager : MonoBehaviour {
 			//{
 				//lastpgnline = lastpgnline + ((moveCount-1)/2 + 1) + ". ";
 			//}
-			lastpgnline = lastpgnline + movedpiece + (char)(destcol + 97) + (destrank + 1);
+			if(dx == -1 && dest1col == -1)
+			{
+				lastpgnline = lastpgnline + movedpiece + (char)(destcol + 97) + (destrank + 1);
+			}
+			else if(dest1col == -1)
+			{
+				lastpgnline = lastpgnline + movedpiece + "x" + (char)(destcol + 97) + (destrank + 1);
+			}
+			else
+			{
+				if(destcol == 6 || dest1col == 6)
+				{
+					lastpgnline = "O-O";
+				}
+				else
+				{
+					lastpgnline = "O-O-O";
+				}
+			}
 			if(whitesTurn == true)
 			{
 				lastpgnline = lastpgnline + " ";
@@ -3154,7 +3446,13 @@ public class PieceManager : MonoBehaviour {
 
 	public void ArtificialMove (int x1, int y1, int x2, int y2,int dx, int dy, int epx, int epy)
 	{
-		seletedobjected = null;
+		if(legalMoves.Count == 0)
+		{
+			print("shouldnt havee entereed");
+			Debug.Break();
+		}
+		capturemoveCount++;
+		//seletedobjected = null;
 		GameObject tempgo = null;
 		float nx1 = ((x1*2)-7) * (1.12875f);
 		float nx2 = ((x2*2)-7) * (1.12875f);
@@ -3165,7 +3463,7 @@ public class PieceManager : MonoBehaviour {
 	//	originalLoc = new Vector2 (((x1*2)-7) * (1.12875f), ((y1*2)-7) * (1.12875f));
 	//	print(nx1 + ",x1 is: "+ x1 + ", " + ny1 + ", " + ", y1 is: " + y1 + ", " + nx2 + ", x2 is: " + x2 + ", " + ny2);
 		Vector3 p = new Vector3 (nx2,ny2,-1);
-
+		
 		if(dx != -1)
 		{
 			RaycastHit2D hitdel = Physics2D.Raycast (new Vector2 (ndx,ndy), -Vector2.up);
@@ -3176,6 +3474,7 @@ public class PieceManager : MonoBehaviour {
 			}
 			else{
 				hitdel.transform.gameObject.SetActive(false);
+				capturemoveCount = 0;
 				//print("Devated");
 				
 			}
@@ -3187,7 +3486,15 @@ public class PieceManager : MonoBehaviour {
 			RaycastHit2D hit = Physics2D.Raycast (new Vector2 (nx1,ny1), -Vector2.up) ;
 			if(hit == null || hit.transform == null)
 			{
-				print("raycast hit nothing temp nx1: " + x1 + "ny1: " + x1);
+				printArray(bp4test);
+				print("___________________________________");
+				bp4test = chessboardarray;
+				printArray(chessboardarray);
+				print("___________________________________");
+				bp4test = checkChessBoardArray;
+				printArray(bp4test);
+				print("____________________________________");
+				print("raycast hit nothing temp nx1: " + x1 + ", ny1: " + y1 + ", nx2: " + x2 + ", ny2: " + y2);
 				Debug.Break();
 			}
 			tempgo = hit.transform.gameObject;
@@ -3201,15 +3508,15 @@ public class PieceManager : MonoBehaviour {
 		if(mwqueen == true && tempgo.GetComponent<SpriteRenderer>().sprite == wpawnname)
 		{
 			tempgo.GetComponent<SpriteRenderer>().sprite = wqueenname;
-			print("White Dest rank is: " + y2);
+			//print("White Dest rank is: " + y2);
 		}
 		else if (mbqueen == true && tempgo.GetComponent<SpriteRenderer>().sprite == bpawnname)
 		{
 			tempgo.GetComponent<SpriteRenderer>().sprite = bqueenname;
-			print("Black Dest rank is: " + y2);
+			//print("Black Dest rank is: " + y2);
 		}
 		isLeegal = true;
-		//seletedobjected = tempgo.transform;
+		seletedobjected = tempgo.transform;
 		//if(destcol == 7 && seletedobjected.GetComponent<)
 		//seletedobjected = tempgo.transform;
 		if(epx != -1)
@@ -3229,11 +3536,28 @@ public class PieceManager : MonoBehaviour {
 			tempgo = hitite.transform.gameObject;
 			//print(tempgo.name);
 			tempgo.SetActive(false);
+			capturemoveCount = 0;
 			//seletedobjected = tempgo.transform;
 		}
+		if(chessboardarray[x1,y1] == 6)
+		{
+			whitekingpos[0] = x2;
+			whitekingpos[1] = y2;
+		}
+		else if(chessboardarray[x1,y1] == 12)
+		{
+			blackkingpos[0] = x2;
+			blackkingpos[1] = y2;
+		}
+		//int ka = 32;
+		//foreach (GameObject piece in pieces)
+		//{
+			
+		//}
+
 		moveCount ++;
 		checkupcall = false;
-		//seletedobjected = null;
+		seletedobjected = null;
 	}
 
 	public void _usePGN_()
@@ -3288,5 +3612,123 @@ public class PieceManager : MonoBehaviour {
 		}
 		
 		File.AppendAllText(path, content);
+	}
+
+	public void Userepeat()
+	{
+		RinseandRepeat = !RinseandRepeat;
+	}
+
+	public void rulemove50 ()
+	{
+		move50rule = !move50rule;
+	}
+
+	public void ResetBoard()
+	{
+		chessboardarray = originalChessBoardArray;
+		whitekingmoved = false;
+		blackkingmoved = false;
+		movedwikingrook = false;
+		movedwqueenrook = false;
+		movedbkingrook = false;
+		movedbqueenrook = false;
+		seletedobjected = null;
+		capturemoveCount = 0;
+		whitekingpos[0] = 4;
+		whitekingpos[1] = 0;
+		blackkingpos[0] = 4;
+		blackkingpos[1] = 7;
+		moveCount = 0;
+		int countery = 0;
+		whitesTurn = true;
+		lastpgnline = "";
+		blackkingincheck = false;
+		whitekingincheck = false;
+		ffcheck = false;
+		foreach(GameObject piece in chesspieces)
+		{
+			float x;
+			float y;
+			int x1;
+			int y1;
+			piece.transform.position = originalChessBoardPosition[countery];
+			x = piece.transform.position.x;
+			y = piece.transform.position.y;
+			x = x / ((1.12875f));
+			y = y / ((1.12875f));
+
+			//odd rounding for x
+			if (Mathf.Round (Mathf.Abs(x)) % 2 != 0) {
+				x = Mathf.Round (x);
+			} else if (Mathf.Abs(x) - Mathf.Round (Mathf.Abs(x)) > 0) {
+				if (x > 0) {
+					x = Mathf.Round (x) + 1;
+				} else {
+					x = Mathf.Round (x) - 1;
+				}
+			} else {
+				if (x > 0) {
+					x = Mathf.Round (x) - 1;
+				} else {
+					x = Mathf.Round (x) + 1;
+				}
+			}
+
+			x = x-1;
+			x = x/2;
+			x=x+4;
+			x1= (int)x;
+
+			//odd rounding for y
+			if (Mathf.Round (Mathf.Abs(y)) % 2 != 0) {
+				y = Mathf.Round (y);
+			} else if (Mathf.Abs(y) - Mathf.Round (Mathf.Abs(y)) > 0) {
+				if (y > 0) {
+					y = Mathf.Round (y) + 1;
+				} else {
+					y = Mathf.Round (y) - 1;
+				}
+			} else {
+				if (y > 0) {
+					y = Mathf.Round (y) - 1;
+				} else {
+					y = Mathf.Round (y) + 1;
+				}
+			}
+			y = y-1;
+			y = y/2;
+			y = y+4;
+			y1 = (int)y;
+
+			if(piece.GetComponent<SpriteRenderer>().sprite == wqueenname && (piece.name == "WhiteQueen" || (y1 != 0 || x1 !=3)))
+			{
+				piece.GetComponent<SpriteRenderer>().sprite = wpawnname;
+			}
+			else if(piece.GetComponent<SpriteRenderer>().sprite == bqueenname && (piece.name == "BlackQueen" || (y1 != 7 || x1 !=3)))
+			{
+				piece.GetComponent<SpriteRenderer>().sprite = bpawnname;
+			}
+			piece.SetActive(true);
+			countery++;
+		}
+		foreach(GameObject wconvertedpawn in wconvertedpawns)
+		{
+			{
+				wconvertedpawn.GetComponent<SpriteRenderer>().sprite = wpawnname;
+			}
+			foreach(GameObject bconvertedpawn in bconvertedpawns)
+			{
+				bconvertedpawn.GetComponent<SpriteRenderer>().sprite = bpawnname;
+			}
+		}
+		wconvertedpawns.Clear();
+		bconvertedpawns.Clear();
+		//int[] nkps = {4,0,4,7};
+		//whitekingpos[0] = nkps[0];
+		//whitekingpos[1] = nkps[1];
+		//blackkingpos[0] = nkps[2];
+		//blackkingpos[1] = nkps[3];
+		isLegal(chessboardarray);
 	}
 }
