@@ -44,6 +44,9 @@ public class PieceManager : MonoBehaviour {
 	public List<Vector3> originalChessBoardPosition = new List<Vector3>();
 	public int[,] checkChessBoardArray = new int[,] { /*A File*/ {0,1,1,0,0,2,2,0}, /*B File*/ {1,1,1,0,0,2,2,2}, /*C File*/ {1,1,1,0,0,2,2,2}, /*D File*/ {1,1,1,0,0,2,2,2}, /*E File*/ {1,1,1,0,0,2,2,2}, /*F File*/ {1,1,1,0,0,2,2,2}, /*G File*/ {1,1,1,0,0,2,2,2}, /*H File*/ {0,1,1,0,0,2,2,0}};
 	public List<int[,]> legalMoves = new List<int[,]>();
+	public List<int[,]> ttlegalMoves = new List<int[,]>();
+	public List<int[,]> ttslegalMoves = new List<int[,]>();
+	public bool ttflag = false;
 	public GameObject[] chesspieces;
 	public string[] chesspiecenames; 
 	public int[] chesspieceid;
@@ -124,6 +127,10 @@ public class PieceManager : MonoBehaviour {
 	public List<GameObject> bconvertedpawns;
 	public bool RinseandRepeat = false;
 	public int[,]bp4test = new int[,] { /*A File*/ {0,0,0,0,0,0,0,0}, /*B File*/ {0,0,0,0,0,0,0,0}, /*C File*/ {0,0,0,0,0,0,0,0}, /*D File*/ {0,0,0,0,0,0,0,0}, /*E File*/ {0,0,0,0,0,0,0,0}, /*F File*/ {0,0,0,0,0,0,0,0}, /*G File*/ {0,0,0,0,0,0,0,0}, /*H File*/ {0,0,0,0,0,0,0,0}};
+	public GameObject GHBTemplate;
+	public Transform GHBParent;
+	public Text GHBText;
+
 
 //              ^
 	// Tree   //|\\
@@ -173,17 +180,22 @@ public class PieceManager : MonoBehaviour {
 		{
 			if (child == null)
 			{
+				print("Cannot insert null value!");
 				throw new ArgumentNullException ("Cannot insert null value!");
+				
 				//print("Cannot insert nul value!");
+				
 			}
 
 			if (child.hasParent)
 			{
+				print("The node already has a parent");
 				throw new ArgumentException ("The node already has a parent");
 				//print ("The node already has a parent!");
 			}
 			child.hasParent = true;
 			this.children.Add(child);
+			//print("child added" + child.value);
 		}
 		public TreeNodeBasic<T> GetChild(int index)
 		{
@@ -227,7 +239,8 @@ public class PieceManager : MonoBehaviour {
 			{
 				return;
 			}
-			Console.WriteLine(spaces + root.Value);
+			print(spaces + root.Value);
+			//Console.WriteLine(spaces + root.Value);
 			TreeNodeBasic<T> child = null;
 			for (int i = 0; i < root.ChildrenCount; i++)
 			{
@@ -259,7 +272,15 @@ public class PieceManager : MonoBehaviour {
 		//GenerateMatrix();
 		if (legalMoves.Count == 0) {
 			//GenerateMatrix();
-			if (blackkingincheck == true) {
+			if(kinginchecks(blackkingpos, chessboardarray))
+			{
+				blackkingincheck = true;
+			}
+			else if (kinginchecks(whitekingpos, chessboardarray))
+			{
+				whitekingincheck = true;
+			}
+			if (blackkingincheck == true || kinginchecks(blackkingpos,chessboardarray) == true) {
 				print ("1-0: Checkmate. White is Victorius");
 				if(RinseandRepeat == true)
 				{
@@ -271,7 +292,7 @@ public class PieceManager : MonoBehaviour {
 					Debug.Break();
 				}
 			}
-			else if (whitekingincheck == true) {
+			else if (whitekingincheck == true || kinginchecks(whitekingpos,chessboardarray) == true) {
 				print ("0-1: Checkmate. Black is Victorius");
 				if(RinseandRepeat == true)
 				{
@@ -375,6 +396,22 @@ public class PieceManager : MonoBehaviour {
 						UpdatePGN(chessboardarray, feedcb);
 					}
 					chessboardarray = feedcb;
+					if(kinginchecks(whitekingpos,chessboardarray) == true)
+					{
+						whitekingincheck = true;
+					}
+					else if (kinginchecks(whitekingpos, chessboardarray) == false)
+					{
+						whitekingincheck = false;
+					}
+					if(kinginchecks(blackkingpos,chessboardarray) == true)
+					{
+						blackkingincheck = true;
+					}
+					else if (kinginchecks(blackkingpos, chessboardarray) == false)
+					{
+						blackkingincheck = false;
+					}
 					whitesTurn = !whitesTurn;
 					//GenerateMatrix();
 					ffcheck = false;
@@ -391,7 +428,7 @@ public class PieceManager : MonoBehaviour {
 		else if((whitesTurn == true && _whitePlayerType == PlayerTypes.Greed) || (whitesTurn == false && _blackPlayerType == PlayerTypes.Greed))
 		{
 			GenerateBasicTree(2);
-
+			
 			//////
 			whitesTurn = !whitesTurn;
 		}
@@ -409,7 +446,7 @@ public class PieceManager : MonoBehaviour {
 			printingcheckarray = false;
 		}
 		if (generatelegalmovesamount == true) {
-			isLegal (chessboardarray);
+			isLegal (chessboardarray,false);
 			print ("Amount of Legal moves is: " + legalMoves.Count);
 			generatelegalmovesamount = false;
 		}
@@ -431,13 +468,28 @@ public class PieceManager : MonoBehaviour {
 
 	public void GenerateBasicTree (int depth)
 	{
-		float tbinput;
-		TreeBasic<float> tb;
+		float tbinput = Engines[1].GetComponent<MatGreedEVALENGINE>().Calc(chessboardarray);
+		TreeBasic<float> tb = new TreeBasic<float>(tbinput);
+		//tb.root = tbinput;
 		if((whitesTurn == true && _whitePlayerType == PlayerTypes.Greed) || (whitesTurn == false && _blackPlayerType == PlayerTypes.Greed))
 		{
 			//print("got ine");
-			tbinput = Engines[1].GetComponent<MatGreedEVALENGINE>().Calc(chessboardarray);
-			tb = new TreeBasic<float>(tbinput);
+			int iteratett = 0;
+
+			while(iteratett < depth)
+			{
+				ttlegalMoves.Clear();
+				foreach(int[,] lm in ttlegalMoves)
+				{
+					isLegal(lm,true);
+					tbinput = Engines[1].GetComponent<MatGreedEVALENGINE>().Calc(lm);
+					tb.Root.AddChild(new TreeNodeBasic<float>(tbinput));
+					ttflag = true;
+				}
+				ttslegalMoves.Clear();
+				iteratett++;
+			}
+			//tb = new TreeBasic<float>(tbinput);
 			for(int i = 0; i < depth; i ++)
 			{
 				tb.TraverseDFS();
@@ -1644,7 +1696,7 @@ public class PieceManager : MonoBehaviour {
 			}
 			k++;
 		}
-		if(enpassant[0] != 0 || enpassant[1] != 0)
+		if((enpassant[0] != 0 || enpassant[1] != 0) && ((whitesTurn == true && _whitePlayerType == PlayerTypes.Human) || (whitesTurn == false && _blackPlayerType == PlayerTypes.Human)))
 		{
 		//	print("kjdaji");
 			if(enpassant[2]==1) {
@@ -1659,7 +1711,7 @@ public class PieceManager : MonoBehaviour {
 				//enpassant = new int[] {0,0,0};
 			}
 		}
-		if(wanttocapture[0] !=-1)
+		if(wanttocapture[0] !=-1 && ((whitesTurn == true && _whitePlayerType == PlayerTypes.Human) || (whitesTurn == false && _blackPlayerType == PlayerTypes.Human)))
 		{
 			gametocodearray[wanttocapture[0],wanttocapture[1]] = wanttocapture[4];
 		}
@@ -1675,7 +1727,7 @@ public class PieceManager : MonoBehaviour {
 			chesspieces[gametocodearray[storedenpassant[0],storedenpassant[1]-1]-32].SetActive(false);
 			capturemoveCount = 0;
 		}
-		isLegal(chessboardarray);
+		isLegal(chessboardarray,false);
 		//if((whitesTurn == true && _whitePlayerType != PlayerTypes.Random)|| (whitesTurn == false && _blackPlayerType != PlayerTypes.Random))
 		//{
 			isLeegal = false;
@@ -1712,7 +1764,7 @@ public class PieceManager : MonoBehaviour {
 //		}
 
 
-		if(((isLeegal == false || (whitekingincheck== true && whitesTurn == true))) && ((whitesTurn == true && _whitePlayerType == PlayerTypes.Human) || (whitesTurn == false && _blackPlayerType == PlayerTypes.Human)))
+		if(((isLeegal == false /*|| (whitekingincheck== true && whitesTurn == true)*/)) && ((whitesTurn == true && _whitePlayerType == PlayerTypes.Human) || (whitesTurn == false && _blackPlayerType == PlayerTypes.Human)))
 		{
 			if(seletedobjected != null)
 			{
@@ -1747,7 +1799,7 @@ public class PieceManager : MonoBehaviour {
 			}
 			if(checkChessBoardArray[whitekingpos[0],whitekingpos[1]] == 2 || checkChessBoardArray[whitekingpos[0],whitekingpos[1]] == 3)
 			{
-			//	whitekingincheck = true;
+				whitekingincheck = true;
 			}
 			else
 			{
@@ -1755,7 +1807,7 @@ public class PieceManager : MonoBehaviour {
 			}
 			if(checkChessBoardArray[kingpostemp[2],kingpostemp[3]] == 1 || checkChessBoardArray[kingpostemp[2],kingpostemp[3]] == 3)
 			{
-			//	blackkingincheck = true;
+				blackkingincheck = true;
 			}
 			else
 			{
@@ -1946,15 +1998,18 @@ public class PieceManager : MonoBehaviour {
 		}
 	}
 
-	public void isLegal (int[,] tessstermatrix)
+	public void isLegal (int[,] tessstermatrix, bool forTree)
 	{
 		//return all legal moves (legal matricies)
 		int[,] testmatrix = tessstermatrix;
 		if (storedenpassant[0] != 0 || storedenpassant[1] !=0) {
 			testmatrix [storedenpassant [0], storedenpassant [1]] = 0;
 		}
-		legalMoves.Clear ();
-		legalMoves.Capacity = 0;
+		if(forTree == false)
+		{
+			legalMoves.Clear ();
+			legalMoves.Capacity = 0;
+		}
 		//int[,] zeroizedmatrix = new int[,] { /*A File*/{ 0, 0, 0, 0, 0, 0, 0, 0 }, /*B File*/{ 0, 0, 0, 0, 0, 0, 0, 0 }, /*C File*/ {0,0,0,0,0,0,0,0}, /*D File*/ {0,0,0,0,0,0,0,0}, /*E File*/ {0,0,0,0,0,0,0,0}, /*F File*/ {0,0,0,0,0,0,0,0}, /*G File*/ {0,0,0,0,0,0,0,0}, /*H File*/ {0,0,0,0,0,0,0,0}};
 		//legalMoves.RemoveAll (zeroizedmatrix);
 		int col = 0;
@@ -1989,7 +2044,8 @@ public class PieceManager : MonoBehaviour {
 					}
 					if(kinginchecks(whitekingpos,editedarray) == false)
 					{
-						legalMoves.Add(editedarray); 
+						if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} 
 					}
 
                 }
@@ -2023,7 +2079,8 @@ public class PieceManager : MonoBehaviour {
 						promotetooo = wpromotepref;
 						editedarray [col+1, rank + 1] = promotetooo;
 					}
-					if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(whitekingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					//printArray (editedarray);
 				}
 				if (col-1>=0 && rank-1>=0 && testmatrix[col-1, rank + 1] > 6) {
@@ -2035,7 +2092,8 @@ public class PieceManager : MonoBehaviour {
 						promotetooo = wpromotepref;
 						editedarray [col-1, rank + 1] = promotetooo;
 					}
-					if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(whitekingpos,editedarray) == false) {if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					//printArray (editedarray);
 				}
 				if (col+1<=7 && col+1 == storedenpassant[0] && rank + 1 == storedenpassant[1] && storedenpassant[2] == 1) {
@@ -2044,7 +2102,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray [col+1, rank + 1] = 1;
 					editedarray [col + 1, rank] = 0;
 					if(kinginchecks(whitekingpos,editedarray) == false) {
-						legalMoves.Add(editedarray);
+						if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);}
 					}
 				}
 				if (col-1>=0 && col-1 == storedenpassant[0] && rank + 1 == storedenpassant[1] && storedenpassant[2] == 1) {
@@ -2053,7 +2112,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray[col-1, rank + 1] = 1;
 					editedarray [col-1, rank] = 0;
 					if(kinginchecks(whitekingpos,editedarray) == false) {
-						legalMoves.Add(editedarray);
+						if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);}
 					}
 				}
 			}
@@ -2071,7 +2131,8 @@ public class PieceManager : MonoBehaviour {
 						editedarray [col, rank - 1] = promotetooo;
 					}
                     if(kinginchecks(blackkingpos,editedarray) == false) {
-						legalMoves.Add(editedarray);
+						if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);}
 					}
                 }
                 editedarray = testmatrix;
@@ -2080,7 +2141,8 @@ public class PieceManager : MonoBehaviour {
                     editedarray[col, rank] = 0;
                     editedarray[col, rank - 2] = 7;
 					editedarray[col, rank - 1] = 98;
-                    if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+                    if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 
                 }
 				// capture
@@ -2093,7 +2155,8 @@ public class PieceManager : MonoBehaviour {
 						promotetooo = bpromotepref;
 						editedarray [col+1, rank - 1] = promotetooo;
 					}
-					if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 				}
 				if (col - 1 >= 0 && rank - 1 >= 0 && testmatrix[col - 1, rank - 1] < 6 && testmatrix[col - 1, rank - 1] != 0) {
 					editedarray = (int[,])testmatrix.Clone();
@@ -2104,7 +2167,8 @@ public class PieceManager : MonoBehaviour {
 						promotetooo = bpromotepref;
 						editedarray [col-1, rank - 1] = promotetooo;
 					}
-					if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 				}
 				//black enpassant
 				if (col+1<=7 && col+1 == storedenpassant[0] && rank - 1 == storedenpassant[1] && storedenpassant[2] == 0) {
@@ -2112,14 +2176,16 @@ public class PieceManager : MonoBehaviour {
 					editedarray[col, rank] = 0;
 					editedarray[col+1, rank - 1] = 7;
 					editedarray [col + 1, rank] = 0;
-					if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 				}
 				if (col-1>=0 && col-1 == storedenpassant[0] && rank - 1 == storedenpassant[1] && storedenpassant[2] == 0) {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col-1, rank - 1] = 7;
 					editedarray [col-1, rank] = 0;
-					if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 				}
             }
 			//White Knight Legal Moves
@@ -2129,52 +2195,60 @@ public class PieceManager : MonoBehaviour {
                     editedarray[col, rank] = 0;
                     editedarray[col + 1, rank + 2] = 2;
 					//editedarray[storedenpassant[0],storedenpassant[1]] = 0;
-                    if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+                    if(kinginchecks(whitekingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
                 }
 				if (col + 1 <= 7 && rank - 2 >= 0 && (testmatrix[col + 1, rank - 2] > 6 || testmatrix[col + 1, rank - 2] == 0)) {
                     editedarray = (int[,])testmatrix.Clone();
                     editedarray[col, rank] = 0;
                     editedarray[col + 1, rank - 2] = 2;
 					//editedarray[storedenpassant[0],storedenpassant[1]] = 0;
-                    if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+                    if(kinginchecks(whitekingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
                 }
 				if (col - 1 >= 0 && rank + 2 <= 7 && (testmatrix[col - 1, rank + 2] > 6 || testmatrix[col - 1, rank + 2] == 0)) {
                     editedarray = (int[,])testmatrix.Clone();
                     editedarray[col, rank] = 0;
                     editedarray[col - 1, rank + 2] = 2;
 					//editedarray[storedenpassant[0],storedenpassant[1]] = 0;
-                    if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+                    if(kinginchecks(whitekingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
                 }
 				if (col - 1 >= 0 && rank - 2 >= 0 && (testmatrix[col - 1, rank - 2] > 6 || testmatrix[col - 1, rank - 2] == 0)) {
                     editedarray = (int[,])testmatrix.Clone();
                     editedarray[col, rank] = 0;
                     editedarray[col - 1, rank - 2] = 2;
 					//editedarray[storedenpassant[0],storedenpassant[1]] = 0;
-                    if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+                    if(kinginchecks(whitekingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
                 }
 				if (col + 2 <= 7 && rank + 1 <= 7 && (testmatrix[col + 2, rank + 1] > 6 || testmatrix[col + 2, rank + 1] == 0)) {
                     editedarray = (int[,])testmatrix.Clone();
                     editedarray[col, rank] = 0;
                     editedarray[col + 2, rank + 1] = 2;
-                    if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+                    if(kinginchecks(whitekingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
                 }
 				if (col + 2 <= 7 && rank - 1 >= 0 && (testmatrix[col + 2, rank - 1] > 6 || testmatrix[col + 2, rank - 1] == 0)) {
                     editedarray = (int[,])testmatrix.Clone();
                     editedarray[col, rank] = 0;
                     editedarray[col + 2, rank - 1] = 2;
-                    if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+                    if(kinginchecks(whitekingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
                 }
 				if (col - 2 >= 0 && rank + 1 <= 7 && (testmatrix[col - 2, rank + 1] > 6 || testmatrix[col - 2, rank + 1] == 0)) {
                     editedarray = (int[,])testmatrix.Clone();
                     editedarray[col, rank] = 0;
                     editedarray[col - 2, rank + 1] = 2;
-                    if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+                    if(kinginchecks(whitekingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
                 }
 				if (col - 2 >= 0 && rank - 1 >= 0 && (testmatrix[col - 2, rank - 1] > 6 || testmatrix[col - 2, rank - 1] == 0)) {
                     editedarray = (int[,])testmatrix.Clone();
                     editedarray[col, rank] = 0;
                     editedarray[col - 2, rank - 1] = 2;
-                    if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+                    if(kinginchecks(whitekingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 
                 }
             }
@@ -2184,49 +2258,57 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col + 1, rank + 2] = 8;
-					if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 				}
 				if (col + 1 <= 7 && rank - 2 >= 0 && testmatrix[col + 1, rank - 2] < 6) {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col + 1, rank - 2] = 8;
-					if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 				}
 				if (col - 1 >= 0 && rank + 2 <= 7 && testmatrix[col - 1, rank + 2] < 6) {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col - 1, rank + 2] = 8;
-					if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 				}
 				if (col - 1 >= 0 && rank - 2 >= 0 && testmatrix[col - 1, rank - 2] < 6) {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col - 1, rank - 2] = 8;
-					if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 				}
 				if (col + 2 <= 7 && rank + 1 <= 7 && testmatrix[col + 2, rank + 1] < 6) {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col + 2, rank + 1] = 8;
-					if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 				}
 				if (col + 2 <= 7 && rank - 1 >= 0 && testmatrix[col + 2, rank - 1] < 6) {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col + 2, rank - 1] = 8;
-					if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 				}
 				if (col - 2 >= 0 && rank + 1 <= 7 && testmatrix[col - 2, rank + 1] < 6) {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col - 2, rank + 1] = 8;
-					if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 				}
 				if (col - 2 >= 0 && rank - 1 >= 0 && testmatrix[col - 2, rank - 1] < 6) {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col - 2, rank - 1] = 8;
-					if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 
 				}
 			}
@@ -2237,7 +2319,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col + i, rank + i] = 3;
-					if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(whitekingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col + i, rank + i] != 0) {
 						endder = true;
 					}
@@ -2247,7 +2330,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col - i, rank + i] = 3;
-					if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(whitekingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col - i, rank + i] != 0) {
 						endder = true;
 					}
@@ -2258,7 +2342,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col + i, rank - i] = 3;
-					if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(whitekingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col + i, rank - i] != 0) {
 						endder = true;
 					}
@@ -2268,7 +2353,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col - i, rank - i] = 3;
-					if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(whitekingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col - i, rank - i] != 0) {
 						endder = true;
 					}
@@ -2281,7 +2367,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col + i, rank + i] = 9;
-					if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col + i, rank + i] != 0) {
 						endder = true;
 					}
@@ -2291,7 +2378,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col - i, rank + i] = 9;
-					if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col - i, rank + i] != 0) {
 						endder = true;
 					}
@@ -2301,7 +2389,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col + i, rank - i] = 9;
-					if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col + i, rank - i] != 0) {
 						endder = true;
 					}
@@ -2311,7 +2400,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col - i, rank - i] = 9;
-					if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col - i, rank - i] != 0) {
 						endder = true;
 					}
@@ -2324,7 +2414,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col, rank + i] = 4;
-					if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(whitekingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col, rank + i] != 0) {
 						endder = true;
 					}
@@ -2334,7 +2425,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col + i, rank] = 4;
-					if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(whitekingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col + i, rank] != 0) {
 						endder = true;
 					}
@@ -2344,7 +2436,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col, rank - i] = 4;
-					if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(whitekingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col, rank - i] != 0) {
 						endder = true;
 					}
@@ -2354,7 +2447,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col-i, rank] = 4;
-					if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(whitekingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col - i, rank] != 0) {
 						endder = true;
 					}
@@ -2367,7 +2461,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col, rank + i] = 10;
-					if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col, rank + i] != 0) {
 						endder = true;
 					}
@@ -2377,7 +2472,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col + i, rank] = 10;
-					if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col + i, rank] != 0) {
 						endder = true;
 					}
@@ -2387,7 +2483,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col, rank - i] = 10;
-					if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col, rank - i] != 0) {
 						endder = true;
 					}
@@ -2397,7 +2494,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col-i, rank] = 10;
-					if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col - i, rank] != 0) {
 						endder = true;
 					}
@@ -2411,7 +2509,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col + i, rank + i] = 5;
-					if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(whitekingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col + i, rank + i] != 0) {
 						endder = true;
 					}
@@ -2421,7 +2520,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col - i, rank + i] = 5;
-					if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(whitekingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col - i, rank + i] != 0) {
 						endder = true;
 					}
@@ -2431,7 +2531,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col + i, rank - i] = 5;
-					if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(whitekingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col + i, rank-i] != 0) {
 						endder = true;
 					}
@@ -2441,7 +2542,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col - i, rank - i] = 5;
-					if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(whitekingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col - i, rank-i] != 0) {
 						endder = true;
 					}
@@ -2452,7 +2554,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col, rank + i] = 5;
-					if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(whitekingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col, rank +i] != 0) {
 						endder = true;
 					}
@@ -2462,7 +2565,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col + i, rank] = 5;
-					if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(whitekingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col + i, rank] != 0) {
 						endder = true;
 					}
@@ -2472,7 +2576,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col, rank - i] = 5;
-					if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(whitekingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col, rank-i] != 0) {
 						endder = true;
 					}
@@ -2482,7 +2587,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col-i, rank] = 5;
-					if(kinginchecks(whitekingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(whitekingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col - i, rank] != 0) {
 						endder = true;
 					}
@@ -2496,7 +2602,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col + i, rank + i] = 11;
-					if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col + i, rank + i] != 0) {
 						endder = true;
 					}
@@ -2506,7 +2613,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col - i, rank + i] = 11;
-					if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col - i, rank + i] != 0) {
 						endder = true;
 					}
@@ -2516,7 +2624,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col + i, rank - i] = 11;
-					if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col + i, rank - i] != 0) {
 						endder = true;
 					}
@@ -2526,7 +2635,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [col, rank] = 0;
 					editedarray [col - i, rank - i] = 11;
-					if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col - i, rank - i] != 0) {
 						endder = true;
 					}
@@ -2537,7 +2647,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col, rank + i] = 11;
-					if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col, rank + i] != 0) {
 						endder = true;
 					}
@@ -2547,7 +2658,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col + i, rank] = 11;
-					if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col + i, rank] != 0) {
 						endder = true;
 					}
@@ -2557,7 +2669,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col, rank - i] = 11;
-					if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col, rank - i] != 0) {
 						endder = true;
 					}
@@ -2567,7 +2680,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col-i, rank] = 11;
-					if(kinginchecks(blackkingpos,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(blackkingpos,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 					if (testmatrix [col - i, rank] != 0) {
 						endder = true;
 					}
@@ -2580,56 +2694,64 @@ public class PieceManager : MonoBehaviour {
                     editedarray = (int[,])testmatrix.Clone();
                     editedarray[col, rank] = 0;
 					editedarray[col + 1, rank] = 6;
-					if(kinginchecks(new int[] {col+1, rank},editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(new int[] {col+1, rank},editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
                 }
 				if(col - 1 >= 0 && (testmatrix[col - 1, rank] > 6 || testmatrix[col - 1, rank] == 0)) 
 				{
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col - 1, rank] = 6;
-					if(kinginchecks(new int[] {col-1, rank},editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(new int[] {col-1, rank},editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 				}
 				if(rank + 1 <= 7 && (testmatrix[col, rank + 1] > 6 || testmatrix[col, rank +1] == 0)) 
 				{
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col, rank + 1] = 6;
-					if(kinginchecks(new int[] {col, rank+1},editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(new int[] {col, rank+1},editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 				}
 				if(rank - 1 >= 0 && (testmatrix[col, rank - 1] > 6 || testmatrix[col, rank - 1] == 0)) 
 				{
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col, rank - 1] = 6;
-					if(kinginchecks(new int[] {col, rank-1},editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(new int[] {col, rank-1},editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 				}
 				if(col + 1 <= 7 && rank - 1 >= 0 && (testmatrix[col+1, rank - 1] > 6 || testmatrix[col + 1, rank - 1] == 0)) 
 				{
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col + 1, rank - 1] = 6;
-					if(kinginchecks(new int[] {col+1, rank-1},editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(new int[] {col+1, rank-1},editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 				}
 				if(col - 1 >= 0 && rank - 1 >= 0 && (testmatrix[col - 1, rank - 1] > 6 || testmatrix[col - 1, rank - 1] == 0)) 
 				{
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col - 1, rank - 1] = 6;
-					if(kinginchecks(new int[] {col-1, rank-1},editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(new int[] {col-1, rank-1},editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 				}
 				if(col + 1 <= 7 && rank + 1 <= 7 && (testmatrix[col + 1, rank + 1] > 6 || testmatrix[col + 1, rank + 1] == 0)) 
 				{
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col + 1, rank + 1] = 6;
-					if(kinginchecks(new int[] {col+1, rank+1},editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(new int[] {col+1, rank+1},editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 				}
 				if(col - 1 >= 0 && rank + 1 <= 7 && (testmatrix[col - 1, rank + 1] > 6 || testmatrix[col - 1, rank + 1] == 0)) 
 				{
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col - 1, rank + 1] = 6;
-					if(kinginchecks(new int[] {col-1, rank+1},editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(new int[] {col-1, rank+1},editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 				}
 				//castling
 				//print("testmatrix [4,0]: "+ testmatrix [4, 0]);
@@ -2674,7 +2796,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray [0, 0] = 0;
 					int[] nkp = {2,0};
 				//	print ("can castle queen side");
-					if(kinginchecks(nkp,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(nkp,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 				//	printArray (editedarray);
 				}
             }
@@ -2685,56 +2808,64 @@ public class PieceManager : MonoBehaviour {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col + 1, rank] = 12;
-					if(kinginchecks(new int[] {col+1, rank},editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(new int[] {col+1, rank},editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 				}
 				if(col - 1 >= 0 && testmatrix[col - 1, rank] < 6) 
 				{
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col - 1, rank] = 12;
-					if(kinginchecks(new int[] {col-1, rank},editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(new int[] {col-1, rank},editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 				}
 				if(rank + 1 <= 7 && testmatrix[col, rank + 1] < 6) 
 				{
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col, rank + 1] = 12;
-					if(kinginchecks(new int[] {col, rank+1},editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(new int[] {col, rank+1},editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 				}
 				if(rank - 1 >= 0 && testmatrix[col, rank - 1] < 6) 
 				{
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col, rank - 1] = 12;
-					if(kinginchecks(new int[] {col, rank-1},editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(new int[] {col, rank-1},editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 				}
 				if(col + 1 <= 7 && rank - 1 >= 0 && testmatrix[col + 1, rank - 1] < 6) 
 				{
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col + 1, rank - 1] = 12;
-					if(kinginchecks(new int[] {col+1, rank-1},editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(new int[] {col+1, rank-1},editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 				}
 				if(col - 1 >= 0 && rank - 1 >= 0 && testmatrix[col - 1, rank - 1] < 6) 
 				{
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col - 1, rank - 1] = 12;
-					if(kinginchecks(new int[] {col-1, rank-1},editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(new int[] {col-1, rank-1},editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 				}
 				if(col + 1 <= 7 && rank + 1 <= 7 && testmatrix[col + 1, rank + 1] < 6) 
 				{
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col + 1, rank + 1] = 12;
-					if(kinginchecks(new int[] {col+1, rank+1},editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(new int[] {col+1, rank+1},editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 				}
 				if(col - 1 >= 0 && rank + 1 <= 7 && testmatrix[col - 1, rank + 1] < 6) 
 				{
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
 					editedarray[col - 1, rank + 1] = 12;
-					if(kinginchecks(new int[] {col-1, rank+1},editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(new int[] {col-1, rank+1},editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 				}
 				//castling
 			//	print("testmatrix [4,7]: "+ testmatrix [4, 7]);
@@ -2757,17 +2888,18 @@ public class PieceManager : MonoBehaviour {
 					editedarray [6, 7] = 12;
 					editedarray [7, 7] = 0;
 					int[] nkp = {6,7};
-					if(kinginchecks(nkp,editedarray) == false) { legalMoves.Add(editedarray); }
+					if(kinginchecks(nkp,editedarray) == false) { if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);} }
 			//		printArray (editedarray);
 				}
 				if (blackkingmoved == false && movedbqueenrook == false && testmatrix [3, 7] == 0 && checkChessBoardArray [3,7] != 1 && checkChessBoardArray [3,7] != 3 && checkChessBoardArray [2,7] != 1 && checkChessBoardArray [2,7] != 3 && testmatrix [2, 7] == 0 && testmatrix[1,7] == 0 && testmatrix [0, 7] == 10) {
 					if(checkChessBoardArray[blackkingpos[0],blackkingpos[1]] == 1 || checkChessBoardArray[blackkingpos[0],blackkingpos[1]] == 3)
 					{
-					//	blackkingincheck = true;
+						blackkingincheck = true;
 					}
 					else
 					{
-					//	blackkingincheck = false;
+						blackkingincheck = false;
 					}
 					editedarray = (int[,])testmatrix.Clone ();
 					editedarray [4, 7] = 0;
@@ -2777,7 +2909,8 @@ public class PieceManager : MonoBehaviour {
 					editedarray [0, 7] = 0;
 					int[] nkp = {2,7};
 					if(kinginchecks(nkp,editedarray) == false) {
-						legalMoves.Add(editedarray);
+						if(forTree == false) {legalMoves.Add(editedarray);}
+						else{ttlegalMoves.Add(editedarray);}
 					}
 				//	printArray (editedarray);
 				}
@@ -2946,7 +3079,7 @@ public class PieceManager : MonoBehaviour {
 			//	print ("x is :" + x);
 			//	print ("y is:" + y);
 				//white kingside castle
-				if (seletedobjected.GetComponent<SpriteRenderer> ().sprite == wkingname && whitekingincheck == false && whitekingmoved == false && movedwikingrook == false && ((x == 5 && y == -7) || (x== 7 && y==-7))) {
+				if (seletedobjected.GetComponent<SpriteRenderer> ().sprite == wkingname && whitekingmoved == false && movedwikingrook == false && ((x == 5 && y == -7) || (x== 7 && y==-7))) {
 					//print ("inhereke");
 					x = 3 * (1.12875f);
 					y = -7 * (1.12875f);
@@ -2966,7 +3099,7 @@ public class PieceManager : MonoBehaviour {
 					//EditorApplication.isPaused = true;
 				}
 				//white queenside castle
-				else if (seletedobjected.GetComponent<SpriteRenderer> ().sprite == wkingname && whitekingincheck == false && whitekingmoved == false && movedwqueenrook == false && ((x == -3 && y == -7) || (x== -7 && y==-7))) {
+				else if (seletedobjected.GetComponent<SpriteRenderer> ().sprite == wkingname && whitekingmoved == false && movedwqueenrook == false && ((x == -3 && y == -7) || (x== -7 && y==-7))) {
 					//print ("inhereke");
 					x = -1 * (1.12875f);
 					y = -7 * (1.12875f);
@@ -2986,7 +3119,7 @@ public class PieceManager : MonoBehaviour {
 					//EditorApplication.isPaused = true;
 				}
 				//black kingside castle
-				else if (seletedobjected.GetComponent<SpriteRenderer> ().sprite == bkingname && blackkingincheck == false && blackkingmoved == false && movedbkingrook == false && ((x == 5 && y == 7) || (x== 7 && y== 7))) {
+				else if (seletedobjected.GetComponent<SpriteRenderer> ().sprite == bkingname && blackkingmoved == false && movedbkingrook == false && ((x == 5 && y == 7) || (x== 7 && y== 7))) {
 			//		print ("inhereke");
 					x = 3 * (1.12875f);
 					y = 7 * (1.12875f);
@@ -3006,7 +3139,7 @@ public class PieceManager : MonoBehaviour {
 					//EditorApplication.isPaused = true;
 				}
 				//black queenside castle
-				else if (seletedobjected.GetComponent<SpriteRenderer> ().sprite == bkingname && blackkingincheck == false && blackkingmoved == false && movedbqueenrook == false && ((x == -3 && y == 7)|| (x==-7 && y==7))) {
+				else if (seletedobjected.GetComponent<SpriteRenderer> ().sprite == bkingname && blackkingmoved == false && movedbqueenrook == false && ((x == -3 && y == 7)|| (x==-7 && y==7))) {
 					//print ("inhereke");
 					x = -1 * (1.12875f);
 					y = 7 * (1.12875f);
@@ -3056,25 +3189,25 @@ public class PieceManager : MonoBehaviour {
 				seletedobjected.position = p;
 
 				GenerateMatrix ();
-				//if(checkChessBoardArray[whitekingpos[0],whitekingpos[1]] == 2 || checkChessBoardArray[whitekingpos[0],whitekingpos[1]] == 3)
-				//{
-				//	whitekingincheck = true;
-				//}
-				//else
-				//{
-				//	whitekingincheck = false;
-				//}
-				//if(checkChessBoardArray[blackkingpos[0],blackkingpos[1]] == 1 || checkChessBoardArray[blackkingpos[0],blackkingpos[1]] == 3)
-				//{
-				//	blackkingincheck = true;
+				if(checkChessBoardArray[whitekingpos[0],whitekingpos[1]] == 2 || checkChessBoardArray[whitekingpos[0],whitekingpos[1]] == 3)
+				{
+					whitekingincheck = true;
+				}
+				else
+				{
+					whitekingincheck = false;
+				}
+				if(checkChessBoardArray[blackkingpos[0],blackkingpos[1]] == 1 || checkChessBoardArray[blackkingpos[0],blackkingpos[1]] == 3)
+				{
+					blackkingincheck = true;
 
-				//}
-				//else
-				//{
-			//		blackkingincheck = false;
-				//}
+				}
+				else
+				{
+					blackkingincheck = false;
+				}
 			}
-			isLegal (chessboardarray);
+			isLegal (chessboardarray, false);
 		}
 	}
 
@@ -3109,6 +3242,14 @@ public class PieceManager : MonoBehaviour {
 		foreach(int num in prevcb)
 		{
 			countertest++;
+			if(newcb[col,rank] == 6)
+			{
+				whitekingpos = new int[] {col,rank};
+			}
+			else if(newcb[col,rank] == 12)
+			{
+				blackkingpos = new int[] {col,rank};
+			}
 			if ((int)prevcb[col,rank] != (int)newcb[col,rank])
 			{
 				if(newcb[col,rank] != 0 && newcb[col,rank]!= 99 && newcb[col,rank]!=98)
@@ -3190,6 +3331,14 @@ public class PieceManager : MonoBehaviour {
 			// if length = 2 then normal move
 			// if length = 3 then enpassant
 			// if length = 4 then castle
+			if(newcb[col,rank] == 6)
+			{
+				whitekingpos = new int[] {col,rank};
+			}
+			if(newcb[col,rank] == 12)
+			{
+				blackkingpos = new int[] {col,rank};
+			}
 			if (col <= 7) {
 				if (rank < 7) {
 					rank++;
@@ -3202,7 +3351,51 @@ public class PieceManager : MonoBehaviour {
 		}
 		if(selcol == -1)
 		{
-			print("NEW GAME!");
+			if(kinginchecks(blackkingpos, newcb))
+			{
+				blackkingincheck = true;
+			}
+			else if (kinginchecks(whitekingpos, newcb))
+			{
+				whitekingincheck = true;
+			}
+			if (blackkingincheck == true || kinginchecks(blackkingpos,chessboardarray) == true) {
+				print ("1-0: Checkmate. White is Victorius");
+				if(RinseandRepeat == true)
+				{
+					ResetBoard();
+					whitesTurn = true;
+				}
+				else
+				{
+					Debug.Break();
+				}
+			}
+			else if (whitekingincheck == true || kinginchecks(whitekingpos,chessboardarray) == true) {
+				print ("0-1: Checkmate. Black is Victorius");
+				if(RinseandRepeat == true)
+				{
+					ResetBoard();
+					whitesTurn = true;
+				}
+				else
+				{
+					Debug.Break();
+				}
+			}
+			else
+			{
+				print ("1/2-1/2: Stalemate");
+				if(RinseandRepeat == true)
+				{
+					ResetBoard();
+					whitesTurn = true;
+				}
+				else
+				{
+					Debug.Break();
+				}
+			}
 			checkupcall = false;
 			fcheckupcall = false;
 			return;
@@ -3347,9 +3540,9 @@ public class PieceManager : MonoBehaviour {
 		{
 			destrank = storedranks[0];
 		}
-		if(usepgn == false && destrank !=-1 && destcol != -1)
+		if(usepgn == false && destrank !=-1 && destcol != -1 && selrank != -1)
 		{
-			if(sel1col!= -1 && newcb[destcol,destrank] != prevcb[selcol,selrank] && destcol != dest1col)
+			if(sel1col!= -1 && selcol!=-1 && newcb[destcol,destrank] != prevcb[selcol,selrank] && destcol != dest1col)
 				{
 					int temp = 0;
 					
@@ -3365,16 +3558,56 @@ public class PieceManager : MonoBehaviour {
 			ArtificialMove(selcol,selrank, destcol, destrank,dx, dy, epx, epy);
 			gametocodearray[destcol,destrank] = gametocodearray[selcol,selrank];
 			gametocodearray[selcol,selrank] = 0;
+			
 			if(sel1col != -1)
 			{
-				
 				ArtificialMove(sel1col,sel1rank, dest1col, dest1rank, -1, -1, -1, -1);
 				gametocodearray[dest1col,dest1rank] = gametocodearray[sel1col,sel1rank];
 				gametocodearray[sel1col,sel1rank] = 0;
+				// if(checkChessBoardArray[whitekingpos[0],whitekingpos[1]] == 2 || checkChessBoardArray[whitekingpos[0],whitekingpos[1]] == 3)
+				// {
+				// 	whitekingincheck = true;
+				// }
+				// else
+				// {
+				// 	whitekingincheck = false;
+				// }
+				// if(checkChessBoardArray[blackkingpos[0],blackkingpos[1]] == 1 || checkChessBoardArray[blackkingpos[0],blackkingpos[1]] == 3)
+				// {
+				// 	blackkingincheck = true;
+				// }
+				// else
+				// {
+				// 	blackkingincheck = false;
+				// }
+				if(kinginchecks(whitekingpos,newcb) == true)
+				{
+					whitekingincheck = true;
+				}
+				else if(kinginchecks(blackkingpos,newcb) == true)
+				{
+					blackkingincheck = true;
+				}
 				//print("calledcastling");
 				//Debug.Break();
 				
 			}
+			// if(checkChessBoardArray[whitekingpos[0],whitekingpos[1]] == 2 || checkChessBoardArray[whitekingpos[0],whitekingpos[1]] == 3)
+			// {
+			// 	whitekingincheck = true;
+			// }
+			// else
+			// {
+			// 	whitekingincheck = false;
+			// }
+			// if(checkChessBoardArray[blackkingpos[0],blackkingpos[1]] == 1 || checkChessBoardArray[blackkingpos[0],blackkingpos[1]] == 3)
+			// {
+			// 	blackkingincheck = true;
+			// }
+			// else
+			// {
+			// 	blackkingincheck = false;
+			// }
 		}
 		else if(selcol != -1 && selrank !=-1)
 		{
@@ -3386,7 +3619,7 @@ public class PieceManager : MonoBehaviour {
 				}
 				else
 				{
-					movedpiece = ((char)(97+selcol)).ToString() + "x";
+					//movedpiece = ((char)(97+selcol)).ToString() + "x";
 				}
 			}
 			else if (prevcb[selcol, selrank] == 2 || prevcb[selcol, selrank] == 8)
@@ -3432,6 +3665,10 @@ public class PieceManager : MonoBehaviour {
 					lastpgnline = "O-O-O";
 				}
 			}
+			if(blackkingincheck == true || whitekingincheck == true)
+			{
+				lastpgnline = lastpgnline + "+";
+			}
 			if(whitesTurn == true)
 			{
 				lastpgnline = lastpgnline + " ";
@@ -3462,6 +3699,8 @@ public class PieceManager : MonoBehaviour {
 		float ndy = ((dy*2)-7) * (1.12875f);
 	//	originalLoc = new Vector2 (((x1*2)-7) * (1.12875f), ((y1*2)-7) * (1.12875f));
 	//	print(nx1 + ",x1 is: "+ x1 + ", " + ny1 + ", " + ", y1 is: " + y1 + ", " + nx2 + ", x2 is: " + x2 + ", " + ny2);
+		
+
 		Vector3 p = new Vector3 (nx2,ny2,-1);
 		
 		if(dx != -1)
@@ -3585,10 +3824,52 @@ public class PieceManager : MonoBehaviour {
 		fcheckupcall = true;
     }
 
-	
+	public void ClearPGNData ()
+	{
+		FileUtil.DeleteFileOrDirectory(Application.dataPath +"/PGNDATA");
+		Directory.CreateDirectory(Application.dataPath +"/PGNDATA");
+		PlayerPrefs.SetInt("GN",1);
+		foreach(Transform child in GHBParent) {
+    		Destroy(child.gameObject);
+		}
+		GHBText.text = "";
+		LoadPGNData ();
+		#if UNITY_EDITOR
+ 		UnityEditor.AssetDatabase.Refresh();
+ 		#endif
+	}
+
+	public void LoadPGNData ()
+	{
+		foreach(Transform child in GHBParent) {
+    		Destroy(child.gameObject);
+		}
+		#if UNITY_EDITOR
+ 		UnityEditor.AssetDatabase.Refresh();
+ 		#endif
+		DirectoryInfo dir = new DirectoryInfo(Application.dataPath +"/PGNDATA");
+		FileInfo[] info = dir.GetFiles("*.txt");
+		int loc = 0;
+		GameObject clone1 = null;
+		foreach (FileInfo f in info)
+		{
+			clone1 = Instantiate(GHBTemplate);
+			clone1.transform.SetParent(GHBParent);
+			clone1.name = f.ToString();
+			clone1.transform.GetChild(0).gameObject.GetComponent<Text>().text = f.ToString();
+			
+			clone1.transform.GetChild(0).gameObject.name = f.ToString();
+			clone1.GetComponent<Button>().onClick.AddListener(delegate{SetGHBText(loc-1);});
+			loc++;
+		}
+		GHBParent.parent.gameObject.GetComponent<RectTransform>().SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, loc*100);
+	}
+
 	void UpdatePGN (int[,] prevcb, int [,] newcb)
 	{
-		string path = Application.dataPath +"/PGNDATA/PGN.txt";
+		int gamenumber = 0;
+		gamenumber = PlayerPrefs.GetInt("GN",1);
+		string path = Application.dataPath +"/PGNDATA/PGN" + gamenumber + ".txt";
 		//Create File if it doesn't exist
 //		if (!File.Exists(path))
 //		{
@@ -3606,12 +3887,48 @@ public class PieceManager : MonoBehaviour {
 		//string content = "Login date: " + System.DateTime.Now + "\n";
 		string content = lastpgnline;
 		//Add some to text to it
+
 		if(moveCount == 1)
 		{
 			File.AppendAllText(path, "1.");
 		}
 		
 		File.AppendAllText(path, content);
+
+	//	#if UNITY_EDITOR
+ 	//	UnityEditor.AssetDatabase.Refresh();
+ 	//	#endif
+	}
+
+	public void SetGHBText (int j)
+	{
+		GHBText.text  = "";
+		DirectoryInfo dir = new DirectoryInfo(Application.dataPath +"/PGNDATA");
+		FileInfo[] info = dir.GetFiles("*.txt");
+		StreamReader reader = null; 
+ 
+		if(/*!(j >= 0 && j <= info.Length) &&*/ info[j] != null && info[j].Exists)
+		{
+			reader = info[j].OpenText();
+			//print("entered");
+			print (j);
+		}
+		if ( reader == null )
+		{
+			print (j + " " + info[j].ToString());
+   			Debug.Log("info[j].name not found or not readable");
+		}
+		else
+		{
+   		// Read each line from the file
+		   string txt = "";
+   			while ( (txt = reader.ReadLine()) != null )
+			{
+    			GHBText.text +=txt + " ";
+			}
+		}
+		reader.Close();
+		
 	}
 
 	public void Userepeat()
@@ -3626,6 +3943,7 @@ public class PieceManager : MonoBehaviour {
 
 	public void ResetBoard()
 	{
+		PlayerPrefs.SetInt("GN",PlayerPrefs.GetInt("GN",0)+1);
 		chessboardarray = originalChessBoardArray;
 		whitekingmoved = false;
 		blackkingmoved = false;
@@ -3729,6 +4047,6 @@ public class PieceManager : MonoBehaviour {
 		//whitekingpos[1] = nkps[1];
 		//blackkingpos[0] = nkps[2];
 		//blackkingpos[1] = nkps[3];
-		isLegal(chessboardarray);
+		isLegal(chessboardarray, false);
 	}
 }
