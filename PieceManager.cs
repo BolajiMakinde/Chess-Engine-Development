@@ -72,6 +72,7 @@ public class PieceManager : MonoBehaviour {
 	public bool printinggamearray;
 	public bool printingcheckarray;
 	public bool whitesTurn;
+	public bool calcwhitesTurn;
 	public bool generateLegalMoves;
 	public bool isLeegal;
 	public int[,]editedarray = new int[,] { /*A File*/ {0,0,0,0,0,0,0,0}, /*B File*/ {0,0,0,0,0,0,0,0}, /*C File*/ {0,0,0,0,0,0,0,0}, /*D File*/ {0,0,0,0,0,0,0,0}, /*E File*/ {0,0,0,0,0,0,0,0}, /*F File*/ {0,0,0,0,0,0,0,0}, /*G File*/ {0,0,0,0,0,0,0,0}, /*H File*/ {0,0,0,0,0,0,0,0}};
@@ -128,8 +129,11 @@ public class PieceManager : MonoBehaviour {
 	public bool RinseandRepeat = false;
 	public int[,]bp4test = new int[,] { /*A File*/ {0,0,0,0,0,0,0,0}, /*B File*/ {0,0,0,0,0,0,0,0}, /*C File*/ {0,0,0,0,0,0,0,0}, /*D File*/ {0,0,0,0,0,0,0,0}, /*E File*/ {0,0,0,0,0,0,0,0}, /*F File*/ {0,0,0,0,0,0,0,0}, /*G File*/ {0,0,0,0,0,0,0,0}, /*H File*/ {0,0,0,0,0,0,0,0}};
 	public GameObject GHBTemplate;
+	public float GHBBUTTONHEIGHT;
 	public Transform GHBParent;
 	public Text GHBText;
+	public int w_calcdepth;
+	public int b_calcdepth;
 
 
 //              ^
@@ -137,12 +141,56 @@ public class PieceManager : MonoBehaviour {
 	         ///|\\\
 			////|\\\\
 	//		   |||
+	// public class TreeDefault
+	// {
+	// 	public class TreeDefNode
+	// 	{
+	// 		public int val;
 
+	// 		public int depth;
+
+	// 		public bool hasPar;
+
+	// 		public List<TreeDefNode> children = new List<TreeDefNode>();
+
+	// 		int max = val;
+
+	// 		List<int> dir2max = new List<int>() {0};
+
+	// 		int depth = 0;
+
+	// 		int iterator = 0;
+
+	// 		public void FindMax(int deptha)
+	// 		{
+				
+	// 			if(val > max)
+	// 			{
+	// 				max = val;
+	// 			}
+	// 			foreach(TreeDefNode child in children)
+	// 			{
+	// 				FindMax(deptha);
+	// 				iterator++;
+	// 			}
+	// 		}
+
+	// 	}
+
+	// 	public TreeDefNode mparent;
+
+	// 	public int[] MaxDirections
+	// 	{
+	// 		//mpare
+	// 	}
+	// }
 	public class TreeNodeBasic<T>
 	{
 		private T value;
 
 		private bool hasParent;
+
+		public int mydepth;
 
 		private List<TreeNodeBasic<T>> children;
 
@@ -154,8 +202,10 @@ public class PieceManager : MonoBehaviour {
 				//print("Cannot insert null value!");
 			}
 			this.value = value;
+			//this.mydepth = mydepth;
 			this.children = new List<TreeNodeBasic<T>>();
 		}
+
 
 		public T Value
 		{
@@ -166,6 +216,18 @@ public class PieceManager : MonoBehaviour {
 			set
 			{
 				this.value = value;
+			}
+		}
+
+		public int Mydepth
+		{
+			get
+			{
+				return this.mydepth;
+			}
+			set
+			{
+				this.mydepth = mydepth;
 			}
 		}
 
@@ -250,7 +312,64 @@ public class PieceManager : MonoBehaviour {
 		}
 		public void TraverseDFS()
 		{
-			this.PrintDFS(this.root, string.Empty);
+			//this.PrintDFS(this.root, string.Empty);
+			this.MaxDFS(this.root, string.Empty);
+			string printest = "";
+			foreach(int num in directions)
+			{
+				printest += num.ToString()+ ", ";
+			}
+			print("directions are " + printest);
+			//print("directions[1] is " + directions[1]);
+			print("value based on directions is: " + this.root.GetChild(directions[1]).GetChild(directions[2]).Value);//.GetChild(directions[2]).Value);
+		}
+		private int maxval = 0;
+		public int testdepth = 0;
+		int[] directions = new int[]{-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
+		int[] tempdirections = new int[]{-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
+		private int[] MaxDFS(TreeNodeBasic<T> root, string spaces)
+		{
+		//	int[] directions = new int[]{-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
+
+			if (this.root == null)
+			{
+				return directions;
+			}
+			tempdirections[root.Mydepth] = testdepth;
+			if(Convert.ToInt32(root.Value) > Convert.ToInt32(maxval))
+			{
+				
+				directions[0] = tempdirections[0];
+				directions[1] = tempdirections[1];
+				directions[2] = tempdirections[2];
+				//directions[root.Mydepth] = testdepth;
+			//	print("my depth is " + root.Mydepth);
+				maxval = Convert.ToInt32(root.Value);
+				//print("im inside herew");
+			}
+			//print("Original is: " + root.Value + ", Conversion is: " + Convert.ToInt32(root.Value));
+			//print(spaces + root.Value);
+			//Console.WriteLine(spaces + root.Value);
+			TreeNodeBasic<T> child = null;
+			for (int i = 0; i < root.ChildrenCount; i++)
+			{
+				
+				//print("Original is: " + root.Value + ", Conversion is: " + Convert.ToInt32(root.Value));
+				//print("");
+				child = root.GetChild(i);
+				MaxDFS(child, spaces + "  ");
+				testdepth = i;
+				testdepth++;
+			}
+			testdepth = testdepth - root.ChildrenCount;
+			//print("max val is: " + maxval);
+			//string printest = "";
+			// foreach(int num in directions)
+			// {
+			// 	printest += num.ToString()+ ", ";
+			// }
+			//print("directions are " + printest);
+			return directions;
 		}
 	}
 
@@ -380,10 +499,10 @@ public class PieceManager : MonoBehaviour {
 					{
 						if(RinseandRepeat == true)
 						{
-							ResetBoard();
-							capturemoveCount = 0;
-							whitesTurn = true;
-							return;
+							//ResetBoard();
+							//capturemoveCount = 0;
+							//whitesTurn = true;
+							//return;
 						}
 						else
 						{
@@ -427,8 +546,14 @@ public class PieceManager : MonoBehaviour {
 		}
 		else if((whitesTurn == true && _whitePlayerType == PlayerTypes.Greed) || (whitesTurn == false && _blackPlayerType == PlayerTypes.Greed))
 		{
-			GenerateBasicTree(2);
-			
+			if(whitesTurn == true)
+			{
+				GenerateBasicTree(w_calcdepth);
+			}
+			else
+			{
+				GenerateBasicTree(b_calcdepth);
+			}
 			//////
 			whitesTurn = !whitesTurn;
 		}
@@ -468,6 +593,7 @@ public class PieceManager : MonoBehaviour {
 
 	public void GenerateBasicTree (int depth)
 	{
+		calcwhitesTurn = whitesTurn;
 		float tbinput = Engines[1].GetComponent<MatGreedEVALENGINE>().Calc(chessboardarray);
 		TreeBasic<float> tb = new TreeBasic<float>(tbinput);
 		//tb.root = tbinput;
@@ -475,21 +601,59 @@ public class PieceManager : MonoBehaviour {
 		{
 			//print("got ine");
 			int iteratett = 0;
-
+			ttslegalMoves.Clear();
+			ttslegalMoves.Add(chessboardarray);
 			while(iteratett < depth)
 			{
+				print("TTS length is: " + ttslegalMoves.Count);
 				ttlegalMoves.Clear();
-				foreach(int[,] lm in ttlegalMoves)
+				//print("TTS length is after clear is: " + ttslegalMoves.Count);
+				int iter = 0;
+				int iter2 = 0;
+				foreach(int[,] lm in ttslegalMoves)
 				{
 					isLegal(lm,true);
 					tbinput = Engines[1].GetComponent<MatGreedEVALENGINE>().Calc(lm);
-					tb.Root.AddChild(new TreeNodeBasic<float>(tbinput));
+					TreeNodeBasic<float> chil = new TreeNodeBasic<float>(tbinput);
+					chil.mydepth = iteratett;
+					//print("CHILD SET DEPTH IS" + chil.Mydepth + ", iteratett is: " + iteratett);
+					if(iteratett == 0)
+					{
+						tb.Root.AddChild(chil);
+						iter++;
+					}
+					else if(iteratett == 1)
+					{
+						tb.Root.GetChild(iter).AddChild(chil);
+						iter2++;
+					}
+					else if(iteratett == 2)
+					{
+						tb.Root.GetChild(iter).GetChild(iter2).AddChild(chil);
+						
+					}
 					ttflag = true;
+					calcwhitesTurn = !calcwhitesTurn;
+					
 				}
 				ttslegalMoves.Clear();
+				foreach(int[,] lm in ttlegalMoves)
+				{
+					ttslegalMoves.Add(lm);
+				}
+				//print("next level");
 				iteratett++;
 			}
 			//tb = new TreeBasic<float>(tbinput);
+			//find best value on tree for lowest number
+			if(whitesTurn == true)
+			{
+				//tb.
+			}
+			else
+			{
+
+			}
 			for(int i = 0; i < depth; i ++)
 			{
 				tb.TraverseDFS();
@@ -503,8 +667,32 @@ public class PieceManager : MonoBehaviour {
 		int trueking;
 		if (kcheckarray[kingloc[0],kingloc[1]] == 6) {
 			trueking = 6;
-		} else {
+		}
+		else if(kcheckarray[kingloc[0],kingloc[1]] == 12)
+		{
 			trueking = 12;
+		}
+		else {
+			print("inputkingpos is incorrect" + kingloc[0] + kingloc[1]);
+			trueking = 6;
+			for(int i = 0; i < kcheckarray.Length; i++)
+			{
+				for(int j = 0; j < kcheckarray.Length; j++)
+				{
+					if(whitesTurn == true && kcheckarray[i,j] == 6)
+					{
+						trueking = 6;
+						kingloc[0] = i;
+						kingloc[1] = j;
+					}
+					else if(whitesTurn == false && kcheckarray[i,j] == 12)
+					{
+						trueking = 12;
+						kingloc[0] = i;
+						kingloc[1] = j;
+					}
+				}
+			}
 		}
 		for(int counteer = 0; counteer < 8; counteer ++)
 		{
@@ -1825,7 +2013,7 @@ public class PieceManager : MonoBehaviour {
 					chesspieces[wanttocapture[2]].SetActive(false);
 					capturemoveCount = 0;
 					chesspieces[wanttocapture[2]].transform.Translate(40,40,40);
-					print(wanttocapture[2]);
+					//print(wanttocapture[2]);
 				}
 				else
 				{
@@ -2031,7 +2219,7 @@ public class PieceManager : MonoBehaviour {
 			}
 			//testmatrix[storedenpassant[0],storedenpassant[1]] = 0;
 			//white pawn legal moves
-            if (num == 1 && whitesTurn == true) {
+            if (num == 1 && ((whitesTurn == true && forTree == false) || (calcwhitesTurn == true && forTree == true))) {
 				editedarray = testmatrix;
                 if (testmatrix[col, rank + 1] == 0) {
                     editedarray = (int[,])testmatrix.Clone();
@@ -2118,7 +2306,7 @@ public class PieceManager : MonoBehaviour {
 				}
 			}
 			//Black Pawn Legal Moves
-            else if (num == 7 && whitesTurn == false) {
+            else if (num == 7 && ((whitesTurn == false && forTree == false) || (calcwhitesTurn == false && forTree == true))) {
 				editedarray = testmatrix;
                 if (rank - 1 >= 0 && testmatrix[col, rank - 1] == 0) {
                     editedarray = (int[,])testmatrix.Clone();
@@ -2189,7 +2377,7 @@ public class PieceManager : MonoBehaviour {
 				}
             }
 			//White Knight Legal Moves
-            else if (num == 2 && whitesTurn == true) {
+            else if (num == 2 && ((whitesTurn == true && forTree == false) || (calcwhitesTurn == true && forTree == true))) {
 				if (col + 1 <= 7 && rank + 2 <= 7 && (testmatrix[col + 1, rank + 2] > 6 || testmatrix[col + 1, rank + 2] == 0)) {
                     editedarray = (int[,])testmatrix.Clone();
                     editedarray[col, rank] = 0;
@@ -2253,7 +2441,7 @@ public class PieceManager : MonoBehaviour {
                 }
             }
 			//Black Knight Legal Moves
-			else if (num == 8 && whitesTurn == false) {
+			else if (num == 8 && ((whitesTurn == false && forTree == false) || (calcwhitesTurn == false && forTree == true))) {
 				if (col + 1 <= 7 && rank + 2 <= 7 && testmatrix[col + 1, rank + 2] < 6) {
 					editedarray = (int[,])testmatrix.Clone();
 					editedarray[col, rank] = 0;
@@ -2312,7 +2500,7 @@ public class PieceManager : MonoBehaviour {
 
 				}
 			}
-            else if (num == 3 && whitesTurn == true)//bishop white moves
+            else if (num == 3 && ((whitesTurn == true && forTree == false) || (calcwhitesTurn == true && forTree == true)))//bishop white moves
             {
 				
 				for (int i = 1;col + i <= 7 && rank + i <= 7 && (testmatrix [col + i, rank + i] > 6 || testmatrix[col + i, rank + i] == 0) && (i == 1 || testmatrix[col + i-1, rank + i-1] == 0) && endder == false; i++) {
@@ -2360,7 +2548,7 @@ public class PieceManager : MonoBehaviour {
 					}
 				}
             }
-			else if (num == 9 && whitesTurn == false)//bishop black moves
+			else if (num == 9 && ((whitesTurn == false && forTree == false) || (calcwhitesTurn == false && forTree == true)))//bishop black moves
 			{
 				endder = false;
 				for (int i = 1;col + i <= 7 && rank + i <= 7 && testmatrix [col + i, rank + i] < 6 && (i == 1 || testmatrix [col + i - 1, rank + i - 1] == 0) && endder == false; i++) {
@@ -2407,7 +2595,7 @@ public class PieceManager : MonoBehaviour {
 					}
 				}
 			}
-            else if (num == 4 && whitesTurn == true)//white rook legal moves 
+            else if (num == 4 && ((whitesTurn == true && forTree == false) || (calcwhitesTurn == true && forTree == true)))//white rook legal moves 
             {
 				endder = false;
 				for (int i = 1; rank + i <= 7 && (testmatrix[col,rank+i] > 6 || testmatrix[col, rank + i] == 0) && (i == 1 || testmatrix [col, rank + i - 1] == 0) && endder == false;i++) {
@@ -2454,7 +2642,7 @@ public class PieceManager : MonoBehaviour {
 					}
 				}
 			}
-			else if (num == 10 && whitesTurn == false)//black rook legal moves 
+			else if (num == 10 && ((whitesTurn == false && forTree == false) || (calcwhitesTurn == false && forTree == true)))//black rook legal moves 
 			{
 				endder = false;
 				for (int i = 1; rank + i <= 7 && testmatrix[col, rank + i] < 6 && (i == 1 || testmatrix [col, rank + i -1] == 0);i++) {
@@ -2502,7 +2690,7 @@ public class PieceManager : MonoBehaviour {
 				}
 			}
 			//white queen legal moves
-			else if (num == 5 && whitesTurn == true) {
+			else if (num == 5 && ((whitesTurn == true && forTree == false) || (calcwhitesTurn == true && forTree == true))) {
 				//diagonal moves
 				endder = false;
 				for (int i = 1;col + i <= 7 && rank + i <= 7 && (testmatrix [col + i, rank + i] > 6 || testmatrix [col + i, rank + i] == 0) && (i == 1 || testmatrix [col + i - 1, rank + i - 1] == 0); i++) {
@@ -2595,7 +2783,7 @@ public class PieceManager : MonoBehaviour {
 				}
             }
 			//black queen legal moves
-			else if (num == 11 && whitesTurn == false) {
+			else if (num == 11 && ((whitesTurn == false && forTree == false) || (calcwhitesTurn == false && forTree == true))) {
 				//diagonal moves
 				endder = false;
 				for (int i = 1;col + i <= 7 && rank + i <= 7 && testmatrix [col + i, rank + i] < 6 && (i == 1 || testmatrix [col + i - 1, rank + i - 1] == 0); i++) {
@@ -2687,7 +2875,7 @@ public class PieceManager : MonoBehaviour {
 					}
 				}
 			}
-            else if (num == 6 && whitesTurn == true) //white king legal moves
+            else if (num == 6 && ((whitesTurn == true && forTree == false) || (calcwhitesTurn == true && forTree == true))) //white king legal moves
             {
 				if(col + 1 <= 7 && (testmatrix[col+1, rank] > 6 || testmatrix[col + 1, rank] == 0)) 
                     {
@@ -2801,7 +2989,7 @@ public class PieceManager : MonoBehaviour {
 				//	printArray (editedarray);
 				}
             }
-			else if (num == 12 && whitesTurn == false) //black king legal moves
+			else if (num == 12 && ((whitesTurn == false && forTree == false) || (calcwhitesTurn == false && forTree == true))) //black king legal moves
 			{
 				if(col + 1 <= 7 && testmatrix[col + 1, rank] < 6) 
 				{
@@ -3213,6 +3401,18 @@ public class PieceManager : MonoBehaviour {
 
 	public void Interpreter (int[,] prevcb, int[,] newcb, bool usepgn)
 	{
+		if(legalMoves.Count == 0)
+		{
+			if(usepgn == false)
+			{
+				return;
+			}
+			else
+			{
+				lastpgnline = "#";
+				return;
+			}
+		}
 		int[,]deltacb = new int[,] { /*A File*/ {0,0,0,0,0,0,0,0}, /*B File*/ {0,0,0,0,0,0,0,0}, /*C File*/ {0,0,0,0,0,0,0,0}, /*D File*/ {0,0,0,0,0,0,0,0}, /*E File*/ {0,0,0,0,0,0,0,0}, /*F File*/ {0,0,0,0,0,0,0,0}, /*G File*/ {0,0,0,0,0,0,0,0}, /*H File*/ {0,0,0,0,0,0,0,0}};
 		int col = 0;
 		int rank = 0;
@@ -3359,8 +3559,16 @@ public class PieceManager : MonoBehaviour {
 			{
 				whitekingincheck = true;
 			}
+			//printArray(newcb);
+			//print("-_______________________-______________________-_____________________");
+			//printArray(chessboardarray);
+			//EditorApplication.isPaused = true;
 			if (blackkingincheck == true || kinginchecks(blackkingpos,chessboardarray) == true) {
 				print ("1-0: Checkmate. White is Victorius");
+				if(_createPGN == true)
+				{
+
+				}
 				if(RinseandRepeat == true)
 				{
 					ResetBoard();
@@ -3850,19 +4058,20 @@ public class PieceManager : MonoBehaviour {
 		DirectoryInfo dir = new DirectoryInfo(Application.dataPath +"/PGNDATA");
 		FileInfo[] info = dir.GetFiles("*.txt");
 		int loc = 0;
-		GameObject clone1 = null;
+		//GameObject clone1 = null;
 		foreach (FileInfo f in info)
 		{
-			clone1 = Instantiate(GHBTemplate);
+			GameObject clone1 = Instantiate(GHBTemplate);
 			clone1.transform.SetParent(GHBParent);
-			clone1.name = f.ToString();
-			clone1.transform.GetChild(0).gameObject.GetComponent<Text>().text = f.ToString();
+			clone1.name = f.Name;
+			clone1.transform.GetChild(0).gameObject.GetComponent<Text>().text = f.Name;
 			
-			clone1.transform.GetChild(0).gameObject.name = f.ToString();
-			clone1.GetComponent<Button>().onClick.AddListener(delegate{SetGHBText(loc-1);});
+			clone1.transform.GetChild(0).gameObject.name = f.Name;
+			int c = loc;
+			clone1.GetComponent<Button>().onClick.AddListener(() => SetGHBText(c));
 			loc++;
 		}
-		GHBParent.parent.gameObject.GetComponent<RectTransform>().SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, loc*100);
+		GHBParent.parent.gameObject.GetComponent<RectTransform>().SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, loc*GHBBUTTONHEIGHT);
 	}
 
 	void UpdatePGN (int[,] prevcb, int [,] newcb)
@@ -3875,7 +4084,12 @@ public class PieceManager : MonoBehaviour {
 //		{
 		if(moveCount == 1)
 		{
-			File.WriteAllText(path, "Login log \n" + System.DateTime.Now + "\n");
+			File.WriteAllText(path, "[Event] 'BMO ChessENGINE game']\n");
+			File.AppendAllText(path, "[Date '" + System.DateTime.Now + "']\n");
+			File.AppendAllText(path, "[Round '-']\n");
+			File.AppendAllText(path, "[White '" + _whitePlayerType.ToString() +"']\n");
+			File.AppendAllText(path, "[Black '" + _blackPlayerType.ToString() +"']");
+			//File.WriteAllText(path, "Login log \n" + System.DateTime.Now + "\n");
 		}
 //		}
 //		else
@@ -3911,11 +4125,11 @@ public class PieceManager : MonoBehaviour {
 		{
 			reader = info[j].OpenText();
 			//print("entered");
-			print (j);
+			//print (j);
 		}
 		if ( reader == null )
 		{
-			print (j + " " + info[j].ToString());
+			//print (j + " " + info[j].ToString());
    			Debug.Log("info[j].name not found or not readable");
 		}
 		else
@@ -3963,6 +4177,7 @@ public class PieceManager : MonoBehaviour {
 		lastpgnline = "";
 		blackkingincheck = false;
 		whitekingincheck = false;
+		checkupcall = false;
 		ffcheck = false;
 		foreach(GameObject piece in chesspieces)
 		{
