@@ -14,16 +14,36 @@ public class RandomENGINE : MonoBehaviour {
 	public int[,] Calc (int[,] input)
 	{
 		int index = 0;
-		pm.isLegal(pm.chessboardarray);
+		//pm.GenerateMatrix();
+		pm.isLegal(pm.chessboardarray, false);
 		if(pm.legalMoves.Count > 0)
 		{
-			index = Random.Range(0, pm.legalMoves.Count-1);
+			index = Random.Range(0, pm.legalMoves.Count);
 		}
 		else
 		{
-			print("no legal moves");
-			Debug.Break();
-			return input;
+			if (pm.legalMoves.Count == 0) {
+			//GenerateMatrix();
+				if(pm.kinginchecks(pm.blackkingpos, pm.chessboardarray))
+				{
+					pm.blackkingincheck = true;
+				}
+				else if (pm.kinginchecks(pm.whitekingpos, pm.chessboardarray))
+				{
+					pm.whitekingincheck = true;
+				}
+			}
+			if(pm.RinseandRepeat == true)
+				{
+					print("no legal moves");
+					//pm.ResetBoard();
+					//pm.whitesTurn = true;
+					return input;
+				}
+				else
+				{
+					Debug.Break();
+				}
 		}
 		return pm.legalMoves[index];
 	}
